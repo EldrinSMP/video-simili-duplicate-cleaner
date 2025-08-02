@@ -1,0 +1,14 @@
+prefix=/home/eldrinsmp/GitHub/vsdc/QtProject/libraries/linux/ffmpeg
+exec_prefix=${prefix}
+libdir=/home/eldrinsmp/GitHub/vsdc/QtProject/libraries/linux/ffmpeg/lib
+includedir=/home/eldrinsmp/GitHub/vsdc/QtProject/libraries/linux/ffmpeg/include
+
+Name: libpostproc
+Description: FFmpeg postprocessing library
+Version: 58.3.100
+Requires: 
+Requires.private: libavutil >= 59.39.100
+Conflicts:
+Libs: -L${libdir}  -lpostproc 
+Libs.private: -lm -latomic
+Cflags: -I${includedir}
