@@ -4,11 +4,11 @@ Vidupe.pro.user
 ffmpeg.exe
 
 QtProject/builds/
-
 QtProject/release-build
-
 .vscode
 build/
+libraries/
+src/
 
 # Node things
 node_modules
@@ -16,6 +16,7 @@ node_modules
 # macOS Specifics
 .DS_Store
 
+=======
 # vcpkg build artifacts
 vcpkg_installed/
 build-*/
@@ -24,3 +25,4 @@ build-*/
 # vcpkg local files (if vcpkg is cloned in project)
 vcpkg/
 QtProject/CMakeUserPresets.json
+>>>>>>> 2bdbc8424e27b5ba7eddd9995962210a508e953c

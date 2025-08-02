@@ -93,4 +93,6 @@ private:
     static constexpr int _almostBlackBitmap  = 1500;    //monochrome thumbnail if less shades of gray than this
 };
 
+Q_DECLARE_METATYPE(Video::ProcessingResult);
+
 #endif // VIDEO_H

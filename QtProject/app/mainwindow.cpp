@@ -282,7 +282,7 @@ void MainWindow::findVideos(QDir &dir)
             _userPressedStop=false; //user needs to press 2x to stop the find videos process, then process videos process.
             return;
         }
-        const QString filePathName = iter.nextFileInfo().canonicalFilePath();
+        const QString filePathName = iter.next();
 
         if(_everyVideo.contains(filePathName)) //don't want duplicates of same file
             continue;
