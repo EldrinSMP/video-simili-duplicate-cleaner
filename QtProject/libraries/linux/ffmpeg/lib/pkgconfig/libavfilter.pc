@@ -1,0 +1,14 @@
+prefix=/home/eldrinsmp/GitHub/vsdc/QtProject/libraries/linux/ffmpeg
+exec_prefix=${prefix}
+libdir=/home/eldrinsmp/GitHub/vsdc/QtProject/libraries/linux/ffmpeg/lib
+includedir=/home/eldrinsmp/GitHub/vsdc/QtProject/libraries/linux/ffmpeg/include
+
+Name: libavfilter
+Description: FFmpeg audio/video filtering library
+Version: 10.4.100
+Requires: 
+Requires.private: libswscale >= 8.3.100, libavutil >= 59.39.100
+Conflicts:
+Libs: -L${libdir}  -lavfilter 
+Libs.private: -pthread -lm -latomic
+Cflags: -I${includedir}
