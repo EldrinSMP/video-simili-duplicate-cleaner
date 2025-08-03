@@ -8,6 +8,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTUIC ON)
 set(CMAKE_AUTORCC ON)
+# This is the fix: Ensure the build directory is an include path.
+# This is crucial for finding auto-generated files like ui_mainwindow.h.
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 # --- Build Options ---
@@ -55,14 +57,6 @@ target_link_libraries(video-simili-duplicate-cleaner PRIVATE
     # Pkg-Config Targets (these contain all necessary flags)
     PkgConfig::FFMPEG
     PkgConfig::OpenCV
-)
-
-# ADDED: This is the definitive fix for the ui_*.h "not found" error.
-# It explicitly tells the target to include its own build directory,
-# where the auto-generated UI headers are placed. This works in both
-# Qt Creator and the PKGBUILD environment.
-target_include_directories(video-simili-duplicate-cleaner PRIVATE
-    "${CMAKE_CURRENT_BINARY_DIR}"
 )
 
 # --- Preprocessor Definitions ---
