@@ -8,6 +8,7 @@ QtProject/release-build
 .vscode
 build/
 src/
+libraries/
 
 # Node things
 node_modules
