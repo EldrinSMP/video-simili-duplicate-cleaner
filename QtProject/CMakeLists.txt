@@ -8,6 +8,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTUIC ON)
 set(CMAKE_AUTORCC ON)
+# This is the fix: Ensure the build directory is an include path.
+# This is crucial for finding auto-generated files like ui_mainwindow.h.
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 # --- Build Options ---
@@ -44,16 +46,8 @@ add_executable(video-simili-duplicate-cleaner
     app/files.qrc
 )
 
-# Explicitly add the build directory to the include path for this target.
-# This ensures that the auto-generated ui_*.h files can be found by the compiler.
-target_include_directories(video-simili-duplicate-cleaner PRIVATE
-    ${CMAKE_CURRENT_BINARY_DIR}
-)
-
 # --- Link Libraries ---
-# MODIFIED: Changed to link against the specific Qt6:: module targets.
-# This is the modern CMake approach that correctly provides include directories
-# and other necessary flags to the compiler, fixing the build errors.
+# Using the modern Qt6:: targets automatically handles include paths for Qt modules.
 target_link_libraries(video-simili-duplicate-cleaner PRIVATE
     # Qt Modules
     Qt6::Widgets
