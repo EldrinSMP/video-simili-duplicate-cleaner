@@ -11,11 +11,15 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 # --- Build Options ---
-option(USE_BUNDLED_LIBS "Use the pre-compiled libraries bundled with the source" ON)
+# MODIFIED: The default is now OFF. The build will use system libraries unless
+# this option is explicitly enabled (e.g., for a Windows build).
+option(USE_BUNDLED_LIBS "Use the pre-compiled libraries bundled with the source" OFF)
 
 # --- Find System Dependencies ---
-# Explicitly set Qt6 tools
-set(QT_UIC_EXECUTABLE "/usr/lib/qt6/uic")
+# Explicitly set Qt6 tools for Arch Linux compatibility
+if(EXISTS "/usr/lib/qt6/uic")
+    set(QT_UIC_EXECUTABLE "/usr/lib/qt6/uic")
+endif()
 find_package(Qt6 COMPONENTS Widgets Concurrent Sql REQUIRED)
 
 # --- Find Libraries via Pkg-Config ---
@@ -31,7 +35,9 @@ else()
 endif()
 
 pkg_check_modules(FFMPEG REQUIRED IMPORTED_TARGET libavcodec libavformat libavutil libswscale)
-pkg_check_modules(OpenCV REQUIRED IMPORTED_TARGET opencv4)
+# MODIFIED: Use CMake's find_package for OpenCV. This is more reliable than pkg-config
+# and resolves the incorrect include path issue on Ubuntu.
+find_package(OpenCV REQUIRED)
 
 # --- Define Application Target ---
 add_executable(video-simili-duplicate-cleaner
@@ -55,7 +61,8 @@ target_link_libraries(video-simili-duplicate-cleaner PRIVATE
 
     # Pkg-Config Targets (these contain all necessary flags)
     PkgConfig::FFMPEG
-    PkgConfig::OpenCV
+    # MODIFIED: Link against the libraries found by find_package(OpenCV).
+    ${OpenCV_LIBS}
 )
 
 # --- Preprocessor Definitions ---
