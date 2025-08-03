@@ -11,9 +11,6 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 # --- Build Options ---
-# ADDED: This option creates a switch for the PKGBUILD to toggle off the
-# use of bundled libraries, forcing it to use system libraries instead.
-# The default is ON for normal development builds in Qt Creator.
 option(USE_BUNDLED_LIBS "Use the pre-compiled libraries bundled with the source" ON)
 
 # --- Find System Dependencies ---
@@ -22,8 +19,6 @@ find_package(Qt6 COMPONENTS Widgets Concurrent Sql REQUIRED)
 # --- Find Libraries via Pkg-Config ---
 find_package(PkgConfig REQUIRED)
 
-# MODIFIED: This entire block is now conditional. It will only run for your
-# development builds, and will be skipped during the PKGBUILD process.
 if(USE_BUNDLED_LIBS)
     message(STATUS "Using bundled FFmpeg and OpenCV libraries.")
     set(FFMPEG_PC_PATH ${PROJECT_SOURCE_DIR}/libraries/linux/ffmpeg/lib/pkgconfig)
@@ -49,11 +44,23 @@ add_executable(video-simili-duplicate-cleaner
     app/files.qrc
 )
 
+# Explicitly add the build directory to the include path for this target.
+# This ensures that the auto-generated ui_*.h files can be found by the compiler.
+target_include_directories(video-simili-duplicate-cleaner PRIVATE
+    ${CMAKE_CURRENT_BINARY_DIR}
+)
+
 # --- Link Libraries ---
+# MODIFIED: Changed to link against the specific Qt6:: module targets.
+# This is the modern CMake approach that correctly provides include directories
+# and other necessary flags to the compiler, fixing the build errors.
 target_link_libraries(video-simili-duplicate-cleaner PRIVATE
+    # Qt Modules
     Qt6::Widgets
     Qt6::Concurrent
     Qt6::Sql
+
+    # Pkg-Config Targets (these contain all necessary flags)
     PkgConfig::FFMPEG
     PkgConfig::OpenCV
 )
