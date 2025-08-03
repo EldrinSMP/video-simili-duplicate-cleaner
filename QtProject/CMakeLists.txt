@@ -8,6 +8,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTUIC ON)
 set(CMAKE_AUTORCC ON)
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 # --- Build Options ---
 option(USE_BUNDLED_LIBS "Use the pre-compiled libraries bundled with the source" ON)
@@ -30,11 +31,6 @@ endif()
 pkg_check_modules(FFMPEG REQUIRED IMPORTED_TARGET libavcodec libavformat libavutil libswscale)
 pkg_check_modules(OpenCV REQUIRED IMPORTED_TARGET opencv4)
 
-# ADDED: This command globally adds the build directory to the include search path.
-# It's a more direct approach that should resolve the "ui_*.h not found" error
-# in the clean PKGBUILD environment.
-include_directories("${CMAKE_CURRENT_BINARY_DIR}")
-
 # --- Define Application Target ---
 add_executable(video-simili-duplicate-cleaner
     app/main.cpp
@@ -49,7 +45,6 @@ add_executable(video-simili-duplicate-cleaner
 )
 
 # --- Link Libraries ---
-# Using the modern Qt6:: targets automatically handles include paths for Qt modules.
 target_link_libraries(video-simili-duplicate-cleaner PRIVATE
     # Qt Modules
     Qt6::Widgets
