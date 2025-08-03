@@ -6,7 +6,7 @@ project(video-simili-duplicate-cleaner VERSION 1.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTUIC ON)
+set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
@@ -14,6 +14,8 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 option(USE_BUNDLED_LIBS "Use the pre-compiled libraries bundled with the source" ON)
 
 # --- Find System Dependencies ---
+# Explicitly set Qt6 tools
+set(QT_UIC_EXECUTABLE "/usr/lib/qt6/uic")
 find_package(Qt6 COMPONENTS Widgets Concurrent Sql REQUIRED)
 
 # --- Find Libraries via Pkg-Config ---
