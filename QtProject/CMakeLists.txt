@@ -34,8 +34,14 @@ add_executable(video-simili-duplicate-cleaner
     app/files.qrc
 )
 
+# --- Add Include Directories ---
+# This ensures the compiler knows where to find the FFmpeg headers.
+target_include_directories(video-simili-duplicate-cleaner PRIVATE
+    ${FFMPEG_INCLUDE_DIRS}
+)
+
 # --- Link Libraries ---
-# Link against the imported targets and variables from find_package and pkg_check_modules
+# Link against the imported targets and variables found by the above commands
 target_link_libraries(video-simili-duplicate-cleaner PRIVATE
     # Qt Modules
     Qt6::Widgets
