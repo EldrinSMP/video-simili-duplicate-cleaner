@@ -73,7 +73,7 @@ private:
     QString msToHHMMSS(const int64_t &time) const;
     QImage getQImageFromFrame(const ffmpeg::AVFrame* pFrame) const;
     QImage ffmpegLib_captureThumbnail(ffmpeg::AVFormatContext *pFormatContext, ffmpeg::AVCodecContext *pCodecContext, int videoStream, int frame_number);
-    QImage ffmpegLib_AVFrameToQImage(ffmpeg::AVFrame *pFrame);
+    QImage ffmpegLib_AVFrameToQImage(ffmpeg::AVFrame *pFrame) const;
     QImage opencv_captureAt(int ms);
 
     uint progress = 1;
