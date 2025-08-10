@@ -38,6 +38,7 @@ add_executable(video-simili-duplicate-cleaner
 # This ensures the compiler knows where to find the FFmpeg headers.
 target_include_directories(video-simili-duplicate-cleaner PRIVATE
     ${FFMPEG_INCLUDE_DIRS}
+    ${OpenCV_INCLUDE_DIRS}
 )
 
 # --- Link Libraries ---

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Video Simili Duplicate Cleaner
+GenericName=Duplicate Video Finder
+Comment=Find and remove duplicate or similar video files
+Exec=video-simili-duplicate-cleaner
+Icon=icon
+Categories=AudioVideo;Video;Utility;Multimedia

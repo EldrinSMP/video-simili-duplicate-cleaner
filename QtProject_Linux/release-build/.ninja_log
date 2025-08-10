@@ -1,0 +1,17 @@
+# ninja log v5
+1	1256	1754784017737712557	video-simili-duplicate-cleaner_autogen/timestamp	f75c6689f04cdece
+1	1256	1754784017737712557	video-simili-duplicate-cleaner_autogen/mocs_compilation.cpp	f75c6689f04cdece
+1	1256	1754784017737712557	/home/build/devel/video-simili-duplicate-cleaner/QtProject_Linux/release-build/video-simili-duplicate-cleaner_autogen/timestamp	f75c6689f04cdece
+1	1256	1754784017737712557	/home/build/devel/video-simili-duplicate-cleaner/QtProject_Linux/release-build/video-simili-duplicate-cleaner_autogen/mocs_compilation.cpp	f75c6689f04cdece
+1260	1269	1754784017755712385	video-simili-duplicate-cleaner_autogen/VJIZ3MDCXP/qrc_files.cpp	53b381f34b0bad4e
+1260	1269	1754784017755712385	/home/build/devel/video-simili-duplicate-cleaner/QtProject_Linux/release-build/video-simili-duplicate-cleaner_autogen/VJIZ3MDCXP/qrc_files.cpp	53b381f34b0bad4e
+1270	1321	1754784017806711901	CMakeFiles/video-simili-duplicate-cleaner.dir/video-simili-duplicate-cleaner_autogen/VJIZ3MDCXP/qrc_files.cpp.o	7295320349a02b97
+1269	7904	1754784024390649194	CMakeFiles/video-simili-duplicate-cleaner.dir/app/video.cpp.o	d4b372bf14a340e9
+1270	8287	1754784024774645532	CMakeFiles/video-simili-duplicate-cleaner.dir/app/ssim.cpp.o	740bf92f120d042c
+1269	8962	1754784025449639091	CMakeFiles/video-simili-duplicate-cleaner.dir/app/videoprocessingpool.cpp.o	3ef5dce237e87e54
+1270	9729	1754784026215631781	CMakeFiles/video-simili-duplicate-cleaner.dir/app/db.cpp.o	65ea744a94f4a703
+1269	10635	1754784027122623121	CMakeFiles/video-simili-duplicate-cleaner.dir/app/main.cpp.o	f4969a7c9ac30542
+1269	11436	1754784027923615471	CMakeFiles/video-simili-duplicate-cleaner.dir/video-simili-duplicate-cleaner_autogen/mocs_compilation.cpp.o	e51e994607f8c07c
+1269	12677	1754784029164603613	CMakeFiles/video-simili-duplicate-cleaner.dir/app/mainwindow.cpp.o	739e75ea574e65f1
+1269	12811	1754784029298602332	CMakeFiles/video-simili-duplicate-cleaner.dir/app/comparison.cpp.o	27a0b07078697f71
+12811	13513	1754784029997595650	video-simili-duplicate-cleaner	988e401d8cbe408a
