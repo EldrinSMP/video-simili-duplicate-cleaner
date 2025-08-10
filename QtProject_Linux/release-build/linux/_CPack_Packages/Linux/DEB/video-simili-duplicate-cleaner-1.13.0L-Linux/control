@@ -1,0 +1,11 @@
+Architecture: amd64
+Depends: libqt6widgets6, libopencv-core4.5d, libavformat58, libavcodec58, libavutil56, libswscale5
+Description: A tool to find and remove duplicate or similar video files.
+Homepage: https://github.com/eldrinsmp/video-simili-duplicate-cleaner
+Maintainer: 134807078+EldrinSMP@users.noreply.github.com
+Package: video-simili-duplicate-cleaner
+Priority: optional
+Section: devel
+Version: 1.13.0L
+Installed-Size: 558
+

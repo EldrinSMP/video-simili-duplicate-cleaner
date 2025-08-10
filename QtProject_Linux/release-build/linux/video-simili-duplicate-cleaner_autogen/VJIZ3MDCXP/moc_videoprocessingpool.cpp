@@ -6,7 +6,7 @@
 ** WARNING! All changes made in this file will be lost!
 *****************************************************************************/
 
-#include "../../../app/videoprocessingpool.h"
+#include "../../../../app/videoprocessingpool.h"
 #include <QtCore/qmetatype.h>
 
 #include <QtCore/qtmochelpers.h>

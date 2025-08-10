@@ -9,6 +9,7 @@ QtProject/release-build
 build/
 src/
 libraries/
+pkg/
 
 # Node things
 node_modules

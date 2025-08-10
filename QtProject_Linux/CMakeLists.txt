@@ -65,3 +65,28 @@ target_compile_definitions(video-simili-duplicate-cleaner PRIVATE
 install(TARGETS video-simili-duplicate-cleaner
     RUNTIME DESTINATION bin
 )
+
+# --- CPack Configuration for DEB and RPM Packages ---
+
+# Set the package metadata
+set(CPACK_PACKAGE_NAME "${PROJECT_NAME}")
+set(CPACK_PACKAGE_VERSION "1.13.0L")
+set(CPACK_PACKAGE_VENDOR "EldrinSMP")
+set(CPACK_PACKAGE_CONTACT "134807078+EldrinSMP@users.noreply.github.com")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "A tool to find and remove duplicate or similar video files.")
+set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/eldrinsmp/video-simili-duplicate-cleaner")
+
+# --- DEB Specific Settings ---
+# This sets the dependencies for the .deb package
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "libqt6widgets6, libopencv-core4.5d, libavformat58, libavcodec58, libavutil56, libswscale5")
+
+# --- RPM Specific Settings ---
+# This sets the dependencies for the .rpm package
+set(CPACK_RPM_PACKAGE_REQUIRES "qt6-qtbase-gui, opencv, ffmpeg-libs")
+
+# --- List of Generators ---
+# This tells CPack which package formats to create
+set(CPACK_GENERATOR "DEB;RPM")
+
+# Include the CPack module to enable packaging
+include(CPack)

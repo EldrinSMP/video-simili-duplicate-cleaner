@@ -1,0 +1,44 @@
+# Maintainer: EldrinSMP <134807078+EldrinSMP@users.noreply.github.com>
+pkgname=video-simili-duplicate-cleaner
+_pkgname=video-simili-duplicate-cleaner
+# This pkgver is a placeholder; the pkgver() function below will generate the real one.
+pkgver=r541.g981f6b0
+pkgrel=1
+pkgdesc="A tool to find and remove duplicate or similar video files."
+arch=('x86_64')
+url="https://github.com/eldrinsmp/video-simili-duplicate-cleaner"
+license=('GPL3')
+
+depends=(
+  'qt6-base'
+  'opencv'
+  'ffmpeg'
+)
+
+makedepends=(
+  'cmake'
+  'git'
+)
+
+source=("$_pkgname::git+$url.git")
+sha256sums=('SKIP')
+
+# This new function works without git tags.
+# It generates a version like "r245.g123abc" (revision 245, git hash 123abc)
+pkgver() {
+  cd "$_pkgname"
+  printf "r%s.g%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+build() {
+  # Corrected to use the QtProject_Linux subdirectory
+  cd "$_pkgname/QtProject_Linux"
+  cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
+  cmake --build build
+}
+
+package() {
+  # Corrected to use the QtProject_Linux subdirectory
+  cd "$_pkgname/QtProject_Linux"
+  DESTDIR="$pkgdir" cmake --install build
+}
