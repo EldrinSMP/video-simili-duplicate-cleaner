@@ -4,6 +4,6 @@ Type=Application
 Name=Video Simili Duplicate Cleaner
 GenericName=Duplicate Video Finder
 Comment=Find and remove duplicate or similar video files
-Icon=/home/eldrinsmp/GitHub/video-simili-duplicate-cleaner/QtProject_Linux/usr/share/icons/hicolor/256x256/apps/video-simili-duplicate-cleaner.png
+Icon=video-simili-duplicate-cleaner
 Exec=video-simili-duplicate-cleaner
 Categories=AudioVideo;Video;Utility;
