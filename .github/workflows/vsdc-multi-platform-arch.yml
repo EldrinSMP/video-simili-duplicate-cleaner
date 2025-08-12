@@ -36,7 +36,7 @@ jobs:
         echo "build-dir=${{ github.workspace }}/QtProject_Linux/build/release" >> "$GITHUB_OUTPUT"
         echo "package-dir=${{ github.workspace }}/release-files" >> "$GITHUB_OUTPUT"
 
-- name: Install Dependencies
+    - name: Install Dependencies
       run: |
         if [ "${{ matrix.arch }}" = "aarch64" ]; then
           # Add arm64 architecture
