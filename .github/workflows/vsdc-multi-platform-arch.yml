@@ -35,10 +35,18 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y \
-          build-essential cmake pkg-config \
-          qt6-base-dev libopencv-dev libgl-dev \
-          libavformat-dev libavcodec-dev libavutil-dev libswscale-dev \
-          rpm
+          build-essential \
+          cmake \
+          pkg-config \
+          qt6-base-dev \
+          libopencv-dev \
+          libavformat-dev \
+          libavcodec-dev \
+          libavutil-dev \
+          libswscale-dev \
+          rpm \
+          libgl-dev \
+          libfuse2
 
     - name: Configure CMake
       run: |
