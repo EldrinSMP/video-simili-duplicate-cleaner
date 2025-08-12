@@ -62,27 +62,34 @@ jobs:
 
     - name: Create Portable Bundle
       run: |
-        # Use linuxdeployqt to gather the app and all its dependencies into one directory.
-        # This directory is now a self-contained, portable application.
         ./linuxdeployqt-continuous-x86_64.AppImage ${{ steps.dirs.outputs.build-dir }}/video-simili-duplicate-cleaner -bundle-non-qt-libs
 
     - name: Archive the Portable Bundle
       run: |
-        # We now compress the self-contained directory into a .tar.gz for distribution.
-        # The version can be taken from your CMake file.
         VERSION=$(grep 'set(CPACK_PACKAGE_VERSION' ${{ steps.dirs.outputs.source-dir }}/CMakeLists.txt | sed -E 's/.*"(.+)".*/\1/')
         tar -czvf ${{ steps.dirs.outputs.package-dir }}/vsdc-portable-${VERSION}-${{ matrix.arch }}.tar.gz video-simili-duplicate-cleaner-x86_64.AppDir/
-    # --- END OF NEW STEPS ---
 
-    - name: Upload Packages
+    - name: Create AppImage from the bundle
+      run: |
+        # This creates the final AppImage in the root of the workspace
+        ./linuxdeployqt-continuous-x86_64.AppImage ${{ steps.dirs.outputs.build-dir }}/video-simili-duplicate-cleaner -appimage
+
+    - name: Upload Temporary Artifacts
+      # This step saves all packages as temporary artifacts for debugging purposes.
+      # These expire automatically and don't count towards permanent storage.
       uses: actions/upload-artifact@v4
       with:
         name: packages-${{ matrix.arch }}
-        # Upload all package types, including our new portable archive
-        path: ${{ steps.dirs.outputs.package-dir }}/*.{deb,rpm,tar.gz}
-    # This lets you download the packages from the Actions run page.
-    - name: Upload Packages
-      uses: actions/upload-artifact@v4
+        path: |
+          ${{ steps.dirs.outputs.package-dir }}/*.{deb,rpm,tar.gz}
+          *.AppImage
+
+    - name: Create GitHub Release
+      # This step only runs when you push a git tag (e.g., git tag v1.2.3 && git push --tags)
+      # It uploads all your packages to a permanent, public release page.
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
       with:
-        name: packages-${{ matrix.arch }} # Name the artifact based on architecture
-        path: ${{ steps.dirs.outputs.package-dir }}
+        files: |
+          ${{ steps.dirs.outputs.package-dir }}/*.{deb,rpm,tar.gz}
+          *.AppImage
