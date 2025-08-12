@@ -67,40 +67,46 @@ jobs:
         wget -c -nv "https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage"
         chmod a+x linuxdeployqt-continuous-x86_64.AppImage
 
-    - name: Create Portable Bundle and List Contents
-      # We are running this step from inside the build directory
+    - name: Create Portable Bundle
+      # This step correctly gathers all dependencies into the current (build) directory.
       working-directory: ${{ steps.dirs.outputs.build-dir }}
       run: |
-        # Run linuxdeployqt to create the bundle directory
         /home/runner/work/video-simili-duplicate-cleaner/video-simili-duplicate-cleaner/linuxdeployqt-continuous-x86_64.AppImage \
           ./video-simili-duplicate-cleaner \
           -bundle-non-qt-libs \
           -qmake=/usr/lib/qt6/bin/qmake
 
-        # THIS IS THE CRITICAL DEBUGGING STEP
-        echo "--- Listing build directory contents ---"
-        ls -lR
-
-    - name: Archive the Portable Bundle
-      # Also run this step from inside the build directory
+    # NEW, MORE RELIABLE APPROACH
+    - name: Assemble Portable Directory and Archive
+      # Run this from the build directory where all the assets are.
       working-directory: ${{ steps.dirs.outputs.build-dir }}
       run: |
+        # 1. Create a clean directory for our portable bundle.
+        mkdir VSDC_Portable
+
+        # 2. Move all the deployed assets into our new directory.
+        mv lib/ plugins/ doc/ qt.conf AppRun video-simili-duplicate-cleaner VSDC_Portable/
+
+        # 3. Get the version string.
         VERSION=$(grep 'set(CPACK_PACKAGE_VERSION' ${{ steps.dirs.outputs.source-dir }}/CMakeLists.txt | sed -E 's/.*"(.+)".*/\1/')
-        # THE NEW FIX: Use a generic wildcard to find ANY directory ending in "AppDir"
-        tar -czvf ${{ steps.dirs.outputs.package-dir }}/vsdc-portable-${VERSION}-${{ matrix.arch }}.tar.gz *AppDir/
 
-    - name: Create AppImage from the bundle
-      # This step also runs from inside the build directory
+        # 4. Create the final tar.gz archive from our clean directory.
+        tar -czvf ${{ steps.dirs.outputs.package-dir }}/vsdc-portable-${VERSION}-${{ matrix.arch }}.tar.gz VSDC_Portable/
+
+    - name: Create AppImage
+      # Run this from the build directory as well.
       working-directory: ${{ steps.dirs.outputs.build-dir }}
       run: |
+        # The AppImage tool should be pointed at the original binary.
+        # It will find the dependencies we moved into VSDC_Portable automatically.
         /home/runner/work/video-simili-duplicate-cleaner/video-simili-duplicate-cleaner/linuxdeployqt-continuous-x86_64.AppImage \
-          ./video-simili-duplicate-cleaner \
+          ./VSDC_Portable/video-simili-duplicate-cleaner \
           -appimage
 
-    # The final upload/release step
     - name: Upload Packages to Release
-      uses: softprops/action-gh-release@v1
+      # This step only runs when you push a git tag.
       if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
       with:
         files: |
           ${{ steps.dirs.outputs.package-dir }}/*.{deb,rpm,tar.gz}
