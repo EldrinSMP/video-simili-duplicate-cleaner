@@ -75,13 +75,17 @@ jobs:
           -qmake=/usr/lib/qt6/bin/qmake
 
     - name: Archive the Portable Bundle
+      working-directory: ${{ steps.dirs.outputs.build-dir }}
       run: |
         VERSION=$(grep 'set(CPACK_PACKAGE_VERSION' ${{ steps.dirs.outputs.source-dir }}/CMakeLists.txt | sed -E 's/.*"(.+)".*/\1/')
         tar -czvf ${{ steps.dirs.outputs.package-dir }}/vsdc-portable-${VERSION}-${{ matrix.arch }}.tar.gz video-simili-duplicate-cleaner-x86_64.AppDir/
 
     - name: Create AppImage from the bundle
+      working-directory: ${{ steps.dirs.outputs.build-dir }}
       run: |
-        ./linuxdeployqt-continuous-x86_64.AppImage ${{ steps.dirs.outputs.build-dir }}/video-simili-duplicate-cleaner -appimage
+        /home/runner/work/video-simili-duplicate-cleaner/video-simili-duplicate-cleaner/linuxdeployqt-continuous-x86_64.AppImage \
+          video-simili-duplicate-cleaner \
+          -appimage
 
     - name: Upload Temporary Artifacts
       uses: actions/upload-artifact@v4
