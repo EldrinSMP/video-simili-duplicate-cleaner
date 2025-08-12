@@ -1,1 +1,0 @@
-/usr/bin/video-simili-duplicate-cleaner

@@ -1,6 +1,6 @@
 # --- Project Setup ---
 cmake_minimum_required(VERSION 3.16)
-project(video-simili-duplicate-cleaner VERSION 1.0 LANGUAGES CXX)
+project(video-simili-duplicate-cleaner VERSION 1.13.0 LANGUAGES CXX)
 
 # --- CMake & C++ Configuration ---
 set(CMAKE_CXX_STANDARD 17)
@@ -70,7 +70,7 @@ install(TARGETS video-simili-duplicate-cleaner
 
 # Set the package metadata
 set(CPACK_PACKAGE_NAME "${PROJECT_NAME}")
-set(CPACK_PACKAGE_VERSION "1.13.0L")
+set(CPACK_PACKAGE_VERSION "1.13.0L-alpha")
 set(CPACK_PACKAGE_VENDOR "EldrinSMP")
 set(CPACK_PACKAGE_CONTACT "134807078+EldrinSMP@users.noreply.github.com")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "A tool to find and remove duplicate or similar video files.")
@@ -86,7 +86,7 @@ set(CPACK_RPM_PACKAGE_REQUIRES "qt6-qtbase-gui, opencv, ffmpeg-libs")
 
 # --- List of Generators ---
 # This tells CPack which package formats to create
-set(CPACK_GENERATOR "DEB;RPM")
+set(CPACK_GENERATOR "DEB;RPM;TXZ")
 
 # Include the CPack module to enable packaging
 include(CPack)
