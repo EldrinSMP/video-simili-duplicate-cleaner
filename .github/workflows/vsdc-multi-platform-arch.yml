@@ -76,32 +76,33 @@ jobs:
           -bundle-non-qt-libs \
           -qmake=/usr/lib/qt6/bin/qmake
 
-    # NEW, MORE RELIABLE APPROACH
     - name: Assemble Portable Directory and Archive
       # Run this from the build directory where all the assets are.
       working-directory: ${{ steps.dirs.outputs.build-dir }}
       run: |
-        # 1. Create a clean directory for our portable bundle.
         mkdir VSDC_Portable
-
-        # 2. Move all the deployed assets into our new directory.
         mv lib/ plugins/ doc/ qt.conf AppRun video-simili-duplicate-cleaner VSDC_Portable/
-
-        # 3. Get the version string.
         VERSION=$(grep 'set(CPACK_PACKAGE_VERSION' ${{ steps.dirs.outputs.source-dir }}/CMakeLists.txt | sed -E 's/.*"(.+)".*/\1/')
-
-        # 4. Create the final tar.gz archive from our clean directory.
         tar -czvf ${{ steps.dirs.outputs.package-dir }}/vsdc-portable-${VERSION}-${{ matrix.arch }}.tar.gz VSDC_Portable/
 
+    - name: Copy Resources for AppImage
+      run: |
+        # Copy the .desktop file from the source repo into the portable directory.
+        cp ${{ github.workspace }}/usr/share/applications/video-simili-duplicate-cleaner.desktop ${{ steps.dirs.outputs.build-dir }}/VSDC_Portable/
+
+        # ALSO COPY THE ICON. We assume a standard path for the icon.
+        # Create the target directory first, then copy the icon.
+        mkdir -p ${{ steps.dirs.outputs.build-dir }}/VSDC_Portable/usr/share/icons/hicolor/256x256/apps/
+        cp ${{ github.workspace }}/usr/share/icons/hicolor/256x256/apps/video-simili-duplicate-cleaner.png ${{ steps.dirs.outputs.build-dir }}/VSDC_Portable/usr/share/icons/hicolor/256x256/apps/
+
     - name: Create AppImage
-      # Run this from the build directory as well.
       working-directory: ${{ steps.dirs.outputs.build-dir }}
       run: |
-        # The AppImage tool should be pointed at the original binary.
-        # It will find the dependencies we moved into VSDC_Portable automatically.
+        # With the .desktop file and icon in place, this command should now succeed.
         /home/runner/work/video-simili-duplicate-cleaner/video-simili-duplicate-cleaner/linuxdeployqt-continuous-x86_64.AppImage \
           ./VSDC_Portable/video-simili-duplicate-cleaner \
-          -appimage
+          -appimage \
+          -qmake=/usr/lib/qt6/bin/qmake
 
     - name: Upload Packages to Release
       # This step only runs when you push a git tag.
