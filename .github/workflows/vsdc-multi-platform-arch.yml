@@ -67,38 +67,38 @@ jobs:
         wget -c -nv "https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage"
         chmod a+x linuxdeployqt-continuous-x86_64.AppImage
 
-    - name: Create Portable Bundle
-      # Run this step from inside the build directory
+- name: Create Portable Bundle and List Contents
+      # We are running this step from inside the build directory
       working-directory: ${{ steps.dirs.outputs.build-dir }}
       run: |
-        # Now that we're in the build dir, we reference the linuxdeployqt tool
-        # with an absolute path and the local app binary with a relative path.
+        # Run linuxdeployqt to create the bundle directory
         /home/runner/work/video-simili-duplicate-cleaner/video-simili-duplicate-cleaner/linuxdeployqt-continuous-x86_64.AppImage \
           ./video-simili-duplicate-cleaner \
           -bundle-non-qt-libs \
           -qmake=/usr/lib/qt6/bin/qmake
 
+        # THIS IS THE CRITICAL DEBUGGING STEP
+        echo "--- Listing build directory contents ---"
+        ls -lR
+
     - name: Archive the Portable Bundle
       # Also run this step from inside the build directory
       working-directory: ${{ steps.dirs.outputs.build-dir }}
       run: |
-        # The VERSION command can stay the same, using an absolute path to the source
         VERSION=$(grep 'set(CPACK_PACKAGE_VERSION' ${{ steps.dirs.outputs.source-dir }}/CMakeLists.txt | sed -E 's/.*"(.+)".*/\1/')
-        # The tar command now finds the AppDir in the current directory, and we use
-        # an absolute path for the output file to guarantee it lands in the right place.
-        tar -czvf ${{ steps.dirs.outputs.package-dir }}/vsdc-portable-${VERSION}-${{ matrix.arch }}.tar.gz ./*_x86_64.AppDir/
+        # THE NEW FIX: Use a generic wildcard to find ANY directory ending in "AppDir"
+        tar -czvf ${{ steps.dirs.outputs.package-dir }}/vsdc-portable-${VERSION}-${{ matrix.arch }}.tar.gz *AppDir/
 
     - name: Create AppImage from the bundle
-      # Finally, run this step from the build directory as well
+      # This step also runs from inside the build directory
       working-directory: ${{ steps.dirs.outputs.build-dir }}
       run: |
-        # The AppImage tool will find the binary and the AppDir in the current folder.
         /home/runner/work/video-simili-duplicate-cleaner/video-simili-duplicate-cleaner/linuxdeployqt-continuous-x86_64.AppImage \
           ./video-simili-duplicate-cleaner \
           -appimage
 
-    # This final upload step should now work correctly
-    - name: Upload Packages and Release
+    # The final upload/release step
+    - name: Upload Packages to Release
       uses: softprops/action-gh-release@v1
       if: startsWith(github.ref, 'refs/tags/')
       with:
