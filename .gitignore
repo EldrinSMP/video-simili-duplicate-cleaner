@@ -2,6 +2,7 @@ Vidupe.pro.user
 *.autosave
 *.db
 ffmpeg.exe
+arch_build.sh
 
 QtProject/builds/
 QtProject/release-build
