@@ -8,28 +8,26 @@ on:
     branches: [ "master" ]
 
 jobs:
-  # JOB 1: NATIVE x86_64 BUILD
+  # JOB 1: NATIVE x86_64 BUILD (No changes)
   build_x86_64:
     name: Build for x86_64
     runs-on: ubuntu-22.04
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
       - name: Download linuxdeployqt
         run: |
           wget -c -nv "https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage"
           chmod a+x linuxdeployqt-continuous-x86_64.AppImage
-      - name: Define Directory Paths
+      - name: Define Directory Paths and Create
         id: dirs
         run: |
           echo "source-dir=${{ github.workspace }}/QtProject_Linux" >> "$GITHUB_OUTPUT"
           echo "build-dir=${{ github.workspace }}/QtProject_Linux/build/release" >> "$GITHUB_OUTPUT"
           echo "package-dir=${{ github.workspace }}/release-files" >> "$GITHUB_OUTPUT"
           mkdir -p ${{ github.workspace }}/release-files
-      - name: Install x86_64 Dependencies
+      - name: Install Dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends \
             build-essential cmake pkg-config rpm libfuse2 libgl-dev \
             qt6-base-dev libopencv-dev libavformat-dev libavcodec-dev \
             libavutil-dev libswscale-dev
@@ -61,67 +59,41 @@ jobs:
             ${{ steps.dirs.outputs.package-dir }}/*.{deb,rpm,tar.gz}
             ${{ steps.dirs.outputs.build-dir }}/*.AppImage
 
-# JOB 2: CONTAINERIZED aarch64 BUILD
+  # JOB 2: CONTAINERIZED aarch64 BUILD (New, more stable approach)
   build_aarch64:
     name: Build for aarch64
     runs-on: ubuntu-22.04
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
       - name: Build and Package in ARM64 Container
-        uses: uraimo/run-on-arch-action@v2
-        with:
-          arch: aarch64
-          distro: ubuntu22.04
-          githubToken: ${{ github.token }}
-          run: |
-            # Set non-interactive to avoid prompts
-            export DEBIAN_FRONTEND=noninteractive
-            # 1. Install Dependencies
-            apt-get update
-            apt-get install -y --no-install-recommends \
-              build-essential cmake pkg-config rpm libfuse2 libgl-dev \
-              qt6-base-dev libopencv-dev libavformat-dev libavcodec-dev \
-              libavutil-dev libswscale-dev git wget
-
-            # 2. Configure and Build
-            cmake -S QtProject_Linux -B QtProject_Linux/build/release \
-              -DCMAKE_BUILD_TYPE=Release \
-              -DCPACK_OUTPUT_FILE_PREFIX=release-files
-            cmake --build QtProject_Linux/build/release
-
-            # 3. Change into the build directory to run all final steps
-            cd QtProject_Linux/build/release
-
-            # 4. Generate Packages
-            cpack
-
-            # 5. Download linuxdeployqt (we need it inside the container)
-            wget -c -nv "https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage"
-            chmod a+x linuxdeployqt-continuous-x86_64.AppImage
-
-            # 6. Bundle, Assemble, Archive, and Create AppImage
-            ./linuxdeployqt-continuous-x86_64.AppImage ./video-simili-duplicate-cleaner -bundle-non-qt-libs -qmake=/usr/bin/qmake
-            mkdir VSDC_Portable
-            mv lib/ plugins/ doc/ qt.conf AppRun video-simili-duplicate-cleaner VSDC_Portable/
-            VERSION=$(grep 'set(CPACK_PACKAGE_VERSION' ../../CMakeLists.txt | sed -E 's/.*"(.+)".*/\1/')
-            tar -czvf ../../release-files/vsdc-portable-${VERSION}-aarch64.tar.gz VSDC_Portable/
-            cp ../usr/share/applications/video-simili-duplicate-cleaner.desktop VSDC_Portable/
-            cp ../usr/share/icons/hicolor/256x256/apps/video-simili-duplicate-cleaner.png VSDC_Portable/video-simili-duplicate-cleaner.png
-            ./linuxdeployqt-continuous-x86_64.AppImage ./VSDC_Portable/video-simili-duplicate-cleaner -appimage -qmake=/usr/bin/qmake
-
-            # 7. Prepare all artifacts for upload
-            mkdir -p ../../artifacts
-            mv ../../release-files/*.{deb,rpm,tar.gz} ../../artifacts/
-            mv *.AppImage ../../artifacts/
-
+        run: |
+          docker run --rm -v ${{ github.workspace }}:/ws:rw --platform linux/arm64 \
+            ubuntu:22.04 \
+            /bin/bash -c " \
+              set -e && \
+              export DEBIAN_FRONTEND=noninteractive && \
+              apt-get update && \
+              apt-get install -y --no-install-recommends \
+                build-essential cmake pkg-config rpm libfuse2 libgl-dev \
+                qt6-base-dev libopencv-dev libavformat-dev libavcodec-dev \
+                libavutil-dev libswscale-dev git wget && \
+              cd /ws && \
+              mkdir -p release-files && \
+              cmake -S QtProject_Linux -B QtProject_Linux/build/release \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DCPACK_OUTPUT_FILE_PREFIX=release-files && \
+              cmake --build QtProject_Linux/build/release && \
+              cd QtProject_Linux/build/release && cpack \
+            "
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: packages-aarch64
-          path: artifacts
+          path: release-files/*.{deb,rpm}
 
   # JOB 3: CREATE RELEASE (Depends on both builds succeeding)
   release:
