@@ -36,24 +36,25 @@ jobs:
         echo "build-dir=${{ github.workspace }}/QtProject_Linux/build/release" >> "$GITHUB_OUTPUT"
         echo "package-dir=${{ github.workspace }}/release-files" >> "$GITHUB_OUTPUT"
 
-    - name: Install Dependencies
+- name: Install Dependencies
       run: |
-        sudo apt-get update
         if [ "${{ matrix.arch }}" = "aarch64" ]; then
           # Add arm64 architecture
           sudo dpkg --add-architecture arm64
-          # COMPLETELY REPLACE the sources.list to point only to the ARM repositories
-          echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports jammy main restricted universe multiverse" | sudo tee /etc/apt/sources.list
-          echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports jammy-updates main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
-          echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports jammy-security main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
+          # Add the ARM 'ports' repository to a separate list file
+          echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports jammy main restricted universe multiverse" | sudo tee /etc/apt/sources.list.d/arm64.list
+          echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports jammy-updates main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list.d/arm64.list
+          echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports jammy-security main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list.d/arm64.list
+          # Update all sources (both amd64 and arm64)
           sudo apt-get update
+          # Install the build tools for the native (amd64) architecture, and the libraries for the target (arm64) architecture
           sudo apt-get install -y --no-install-recommends \
-            build-essential cmake pkg-config rpm libfuse2 libgl-dev \
-            g++-aarch64-linux-gnu \
+            build-essential cmake pkg-config rpm libfuse2 libgl-dev g++-aarch64-linux-gnu \
             qt6-base-dev:arm64 libopencv-dev:arm64 libavformat-dev:arm64 \
             libavcodec-dev:arm64 libavutil-dev:arm64 libswscale-dev:arm64
         else
-          # For x86_64, use the default repositories
+          # For x86_64, the existing command is correct
+          sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             build-essential cmake pkg-config rpm libfuse2 libgl-dev \
             qt6-base-dev libopencv-dev libavformat-dev libavcodec-dev \
