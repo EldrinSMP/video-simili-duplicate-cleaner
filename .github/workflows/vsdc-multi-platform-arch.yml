@@ -67,7 +67,7 @@ jobs:
         wget -c -nv "https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage"
         chmod a+x linuxdeployqt-continuous-x86_64.AppImage
 
-- name: Create Portable Bundle and List Contents
+    - name: Create Portable Bundle and List Contents
       # We are running this step from inside the build directory
       working-directory: ${{ steps.dirs.outputs.build-dir }}
       run: |
