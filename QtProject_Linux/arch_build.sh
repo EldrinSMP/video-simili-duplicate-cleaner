@@ -47,7 +47,7 @@ mkdir -p "$PACKAGE_DIR"
 # Configure the project, telling CPack where to place the final packages
 cmake -S "$SCRIPT_DIR" -B "$BUILD_DIR" \
       -DCMAKE_BUILD_TYPE=Release \
-      -DCMAKE_INSTALL_PREFIX=/usr \
+      -DCMAKE_INSTALL_PREFIX=/usr/local \
       -DCPACK_OUTPUT_FILE_PREFIX="$PACKAGE_DIR"
 
 # --- 3. Build ---
