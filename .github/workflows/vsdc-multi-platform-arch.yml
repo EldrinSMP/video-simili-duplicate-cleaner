@@ -24,6 +24,12 @@ jobs:
       if: matrix.arch == 'aarch64'
       uses: docker/setup-qemu-action@v3
 
+    # Download the deployment tool once at the beginning to a known path
+    - name: Download linuxdeployqt
+      run: |
+        wget -c -nv "https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage"
+        chmod a+x linuxdeployqt-continuous-x86_64.AppImage
+
     - name: Define Directory Paths
       id: dirs
       run: |
@@ -34,26 +40,27 @@ jobs:
     - name: Install Dependencies
       run: |
         sudo apt-get update
-        # If we are building for ARM...
         if [ "${{ matrix.arch }}" = "aarch64" ]; then
-          # Add the arm64 architecture and install the cross-compiler and ARM libraries.
+          # Add arm64 architecture and explicitly add the 'ports' repository
           sudo dpkg --add-architecture arm64
+          echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports/ jammy main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
+          echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports/ jammy-updates main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
+          echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports/ jammy-security main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
           sudo apt-get update
-          sudo apt-get install -y \
+          sudo apt-get install -y --no-install-recommends \
             build-essential cmake pkg-config rpm libfuse2 libgl-dev \
             g++-aarch64-linux-gnu \
             qt6-base-dev:arm64 libopencv-dev:arm64 libavformat-dev:arm64 \
             libavcodec-dev:arm64 libavutil-dev:arm64 libswscale-dev:arm64
         else
-          # Otherwise, for the x86_64 build, install the normal native libraries.
-          sudo apt-get install -y \
+          # For x86_64, install native libraries
+          sudo apt-get install -y --no-install-recommends \
             build-essential cmake pkg-config rpm libfuse2 libgl-dev \
             qt6-base-dev libopencv-dev libavformat-dev libavcodec-dev \
             libavutil-dev libswscale-dev
         fi
 
     - name: Create ARM64 Toolchain File
-      # This step only runs for the aarch64 build.
       if: matrix.arch == 'aarch64'
       run: |
         cat <<EOF > ${{ github.workspace }}/arm64.toolchain.cmake
@@ -62,24 +69,15 @@ jobs:
         set(CMAKE_C_COMPILER aarch64-linux-gnu-gcc)
         set(CMAKE_CXX_COMPILER aarch64-linux-gnu-g++)
         set(CMAKE_FIND_ROOT_PATH /usr/aarch64-linux-gnu)
-        set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
-        set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
-        set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
-        set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
         EOF
 
     - name: Configure CMake
       run: |
-        # Start with default options
         CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release -DCPACK_OUTPUT_FILE_PREFIX=${{ steps.dirs.outputs.package-dir }}"
-        # If we're on the ARM build, add the toolchain file to the options.
         if [ "${{ matrix.arch }}" = "aarch64" ]; then
           CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/arm64.toolchain.cmake"
         fi
-        # Run cmake with the correct arguments for the current architecture.
         cmake -S ${{ steps.dirs.outputs.source-dir }} -B ${{ steps.dirs.outputs.build-dir }} $CMAKE_ARGS
-
-    # --- THE REST OF THE WORKFLOW REMAINS THE SAME ---
 
     - name: Build Project
       run: cmake --build ${{ steps.dirs.outputs.build-dir }}
@@ -91,7 +89,8 @@ jobs:
     - name: Create Portable Bundle
       working-directory: ${{ steps.dirs.outputs.build-dir }}
       run: |
-        /home/runner/work/video-simili-duplicate-cleaner/video-simili-duplicate-cleaner/linuxdeployqt-continuous-x86_64.AppImage \
+        # Use the absolute path to the downloaded tool
+        ${{ github.workspace }}/linuxdeployqt-continuous-x86_64.AppImage \
           ./video-simili-duplicate-cleaner -bundle-non-qt-libs -qmake=/usr/lib/qt6/bin/qmake
 
     - name: Assemble Portable Directory and Archive
@@ -110,7 +109,8 @@ jobs:
     - name: Create AppImage
       working-directory: ${{ steps.dirs.outputs.build-dir }}
       run: |
-        /home/runner/work/video-simili-duplicate-cleaner/video-simili-duplicate-cleaner/linuxdeployqt-continuous-x86_64.AppImage \
+        # Use the absolute path to the downloaded tool
+        ${{ github.workspace }}/linuxdeployqt-continuous-x86_64.AppImage \
           ./VSDC_Portable/video-simili-duplicate-cleaner -appimage -qmake=/usr/lib/qt6/bin/qmake
 
     - name: Upload Packages to Release
