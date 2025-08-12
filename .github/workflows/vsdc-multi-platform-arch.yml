@@ -87,13 +87,14 @@ jobs:
 
     - name: Copy Resources for AppImage
       run: |
-        # Copy the .desktop file from the source repo into the portable directory.
-        cp ${{ github.workspace }}/usr/share/applications/video-simili-duplicate-cleaner.desktop ${{ steps.dirs.outputs.build-dir }}/VSDC_Portable/
+        # THE FIX: Use the correct paths as provided by the user.
+        cp ${{ github.workspace }}/QtProject_Linux/usr/share/applications/video-simili-duplicate-cleaner.desktop ${{ steps.dirs.outputs.build-dir }}/VSDC_Portable/
 
-        # ALSO COPY THE ICON. We assume a standard path for the icon.
-        # Create the target directory first, then copy the icon.
+        # Create the destination directory structure for the icon.
         mkdir -p ${{ steps.dirs.outputs.build-dir }}/VSDC_Portable/usr/share/icons/hicolor/256x256/apps/
-        cp ${{ github.workspace }}/usr/share/icons/hicolor/256x256/apps/video-simili-duplicate-cleaner.png ${{ steps.dirs.outputs.build-dir }}/VSDC_Portable/usr/share/icons/hicolor/256x256/apps/
+
+        # Copy the icon from the correct source path.
+        cp ${{ github.workspace }}/QtProject_Linux/usr/share/icons/hicolor/256x256/apps/video-simili-duplicate-cleaner.png ${{ steps.dirs.outputs.build-dir }}/VSDC_Portable/usr/share/icons/hicolor/256x256/apps/
 
     - name: Create AppImage
       working-directory: ${{ steps.dirs.outputs.build-dir }}
