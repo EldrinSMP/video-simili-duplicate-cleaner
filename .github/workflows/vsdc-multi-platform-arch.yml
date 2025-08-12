@@ -1,0 +1,88 @@
+# Workflow name
+name: VSDC Linux Multi-Arch Build
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build_and_package:
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86_64, aarch64]
+
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up QEMU
+      if: matrix.arch == 'aarch64'
+      uses: docker/setup-qemu-action@v3
+
+    - name: Define Directory Paths
+      id: dirs
+      run: |
+        echo "source-dir=${{ github.workspace }}/QtProject_Linux" >> "$GITHUB_OUTPUT"
+        echo "build-dir=${{ github.workspace }}/QtProject_Linux/build/release" >> "$GITHUB_OUTPUT"
+        echo "package-dir=${{ github.workspace }}/release-files" >> "$GITHUB_OUTPUT"
+
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential cmake pkg-config \
+          libqt6widgets6-dev libopencv-dev \
+          libavformat-dev libavcodec-dev libavutil-dev libswscale-dev \
+          rpm
+
+    - name: Configure CMake
+      run: |
+        cmake -S ${{ steps.dirs.outputs.source-dir }} \
+              -B ${{ steps.dirs.outputs.build-dir }} \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DCPACK_OUTPUT_FILE_PREFIX=${{ steps.dirs.outputs.package-dir }}
+
+    - name: Build Project
+      run: cmake --build ${{ steps.dirs.outputs.build-dir }}
+
+    - name: Generate DEB and RPM Packages
+      working-directory: ${{ steps.dirs.outputs.build-dir }}
+      run: cpack
+
+    # --- NEW STEPS FOR PORTABLE ARCHIVE ---
+    - name: Download linuxdeployqt
+      run: |
+        wget -c -nv "https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage"
+        chmod a+x linuxdeployqt-continuous-x86_64.AppImage
+
+    - name: Create Portable Bundle
+      run: |
+        # Use linuxdeployqt to gather the app and all its dependencies into one directory.
+        # This directory is now a self-contained, portable application.
+        ./linuxdeployqt-continuous-x86_64.AppImage ${{ steps.dirs.outputs.build-dir }}/video-simili-duplicate-cleaner -bundle-non-qt-libs
+
+    - name: Archive the Portable Bundle
+      run: |
+        # We now compress the self-contained directory into a .tar.gz for distribution.
+        # The version can be taken from your CMake file.
+        VERSION=$(grep 'set(CPACK_PACKAGE_VERSION' ${{ steps.dirs.outputs.source-dir }}/CMakeLists.txt | sed -E 's/.*"(.+)".*/\1/')
+        tar -czvf ${{ steps.dirs.outputs.package-dir }}/vsdc-portable-${VERSION}-${{ matrix.arch }}.tar.gz video-simili-duplicate-cleaner-x86_64.AppDir/
+    # --- END OF NEW STEPS ---
+
+    - name: Upload Packages
+      uses: actions/upload-artifact@v4
+      with:
+        name: packages-${{ matrix.arch }}
+        # Upload all package types, including our new portable archive
+        path: ${{ steps.dirs.outputs.package-dir }}/*.{deb,rpm,tar.gz}
+    # This lets you download the packages from the Actions run page.
+    - name: Upload Packages
+      uses: actions/upload-artifact@v4
+      with:
+        name: packages-${{ matrix.arch }} # Name the artifact based on architecture
+        path: ${{ steps.dirs.outputs.package-dir }}
