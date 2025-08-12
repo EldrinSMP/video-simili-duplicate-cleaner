@@ -20,7 +20,7 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Set up QEMU
+    - name: Set up QEMU for ARM emulation
       if: matrix.arch == 'aarch64'
       uses: docker/setup-qemu-action@v3
 
@@ -31,29 +31,55 @@ jobs:
         echo "build-dir=${{ github.workspace }}/QtProject_Linux/build/release" >> "$GITHUB_OUTPUT"
         echo "package-dir=${{ github.workspace }}/release-files" >> "$GITHUB_OUTPUT"
 
-    # FIX #1: INSTALL THE ARM CROSS-COMPILER
     - name: Install Dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y \
-          build-essential cmake pkg-config rpm libfuse2 libgl-dev \
-          qt6-base-dev libopencv-dev libavformat-dev libavcodec-dev \
-          libavutil-dev libswscale-dev \
-          g++-aarch64-linux-gnu # <-- Add the cross-compiler
-
-    # FIX #1: USE THE ARM CROSS-COMPILER
-    - name: Configure CMake
-      run: |
-        # Use an if statement to select the correct compiler for the architecture
+        # If we are building for ARM...
         if [ "${{ matrix.arch }}" = "aarch64" ]; then
-          export CXX=aarch64-linux-gnu-g++
+          # Add the arm64 architecture and install the cross-compiler and ARM libraries.
+          sudo dpkg --add-architecture arm64
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential cmake pkg-config rpm libfuse2 libgl-dev \
+            g++-aarch64-linux-gnu \
+            qt6-base-dev:arm64 libopencv-dev:arm64 libavformat-dev:arm64 \
+            libavcodec-dev:arm64 libavutil-dev:arm64 libswscale-dev:arm64
+        else
+          # Otherwise, for the x86_64 build, install the normal native libraries.
+          sudo apt-get install -y \
+            build-essential cmake pkg-config rpm libfuse2 libgl-dev \
+            qt6-base-dev libopencv-dev libavformat-dev libavcodec-dev \
+            libavutil-dev libswscale-dev
         fi
 
-        cmake -S ${{ steps.dirs.outputs.source-dir }} \
-              -B ${{ steps.dirs.outputs.build-dir }} \
-              -DCMAKE_CXX_COMPILER=$CXX \
-              -DCMAKE_BUILD_TYPE=Release \
-              -DCPACK_OUTPUT_FILE_PREFIX=${{ steps.dirs.outputs.package-dir }}
+    - name: Create ARM64 Toolchain File
+      # This step only runs for the aarch64 build.
+      if: matrix.arch == 'aarch64'
+      run: |
+        cat <<EOF > ${{ github.workspace }}/arm64.toolchain.cmake
+        set(CMAKE_SYSTEM_NAME Linux)
+        set(CMAKE_SYSTEM_PROCESSOR aarch64)
+        set(CMAKE_C_COMPILER aarch64-linux-gnu-gcc)
+        set(CMAKE_CXX_COMPILER aarch64-linux-gnu-g++)
+        set(CMAKE_FIND_ROOT_PATH /usr/aarch64-linux-gnu)
+        set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
+        set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+        set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+        set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
+        EOF
+
+    - name: Configure CMake
+      run: |
+        # Start with default options
+        CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release -DCPACK_OUTPUT_FILE_PREFIX=${{ steps.dirs.outputs.package-dir }}"
+        # If we're on the ARM build, add the toolchain file to the options.
+        if [ "${{ matrix.arch }}" = "aarch64" ]; then
+          CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/arm64.toolchain.cmake"
+        fi
+        # Run cmake with the correct arguments for the current architecture.
+        cmake -S ${{ steps.dirs.outputs.source-dir }} -B ${{ steps.dirs.outputs.build-dir }} $CMAKE_ARGS
+
+    # --- THE REST OF THE WORKFLOW REMAINS THE SAME ---
 
     - name: Build Project
       run: cmake --build ${{ steps.dirs.outputs.build-dir }}
@@ -76,12 +102,9 @@ jobs:
         VERSION=$(grep 'set(CPACK_PACKAGE_VERSION' ${{ steps.dirs.outputs.source-dir }}/CMakeLists.txt | sed -E 's/.*"(.+)".*/\1/')
         tar -czvf ${{ steps.dirs.outputs.package-dir }}/vsdc-portable-${VERSION}-${{ matrix.arch }}.tar.gz VSDC_Portable/
 
-    # FIX #2: COPY RESOURCES TO THE CORRECT LOCATIONS
     - name: Copy Resources for AppImage
       run: |
-        # Copy the .desktop file to the root of the bundle
         cp ${{ github.workspace }}/QtProject_Linux/usr/share/applications/video-simili-duplicate-cleaner.desktop ${{ steps.dirs.outputs.build-dir }}/VSDC_Portable/
-        # Copy the icon file (named to match the .desktop file's Icon entry) to the root of the bundle
         cp ${{ github.workspace }}/QtProject_Linux/usr/share/icons/hicolor/256x256/apps/video-simili-duplicate-cleaner.png ${{ steps.dirs.outputs.build-dir }}/VSDC_Portable/video-simili-duplicate-cleaner.png
 
     - name: Create AppImage
