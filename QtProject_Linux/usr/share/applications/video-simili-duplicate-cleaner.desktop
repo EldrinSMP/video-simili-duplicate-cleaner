@@ -1,8 +1,9 @@
+# Created with jdDesktopEntryEdit 1.7
 [Desktop Entry]
 Type=Application
 Name=Video Simili Duplicate Cleaner
 GenericName=Duplicate Video Finder
 Comment=Find and remove duplicate or similar video files
+Icon=/home/eldrinsmp/GitHub/video-simili-duplicate-cleaner/QtProject_Linux/usr/share/icons/hicolor/256x256/apps/video-simili-duplicate-cleaner.png
 Exec=video-simili-duplicate-cleaner
-Icon=icon
-Categories=AudioVideo;Video;Utility;Multimedia
+Categories=AudioVideo;Video;Utility;
