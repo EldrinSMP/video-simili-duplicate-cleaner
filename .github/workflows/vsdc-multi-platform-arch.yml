@@ -1,4 +1,3 @@
-# Workflow name
 name: VSDC Linux Multi-Arch Build
 
 on:
@@ -8,7 +7,7 @@ on:
     branches: [ "master" ]
 
 jobs:
-  # JOB 1: NATIVE x86_64 BUILD (Full definition)
+  # JOB 1: NATIVE x86_64 BUILD
   build_x86_64:
     name: Build for x86_64
     runs-on: ubuntu-22.04
@@ -16,15 +15,13 @@ jobs:
       - uses: actions/checkout@v4
       - name: Download linuxdeployqt
         run: |
-          wget -c -nv "https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage"
+          wget -q https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage
           chmod a+x linuxdeployqt-continuous-x86_64.AppImage
-      - name: Define Directory Paths and Create
+      - name: Define Paths
         id: dirs
         run: |
-          echo "source-dir=${{ github.workspace }}/QtProject_Linux" >> "$GITHUB_OUTPUT"
-          echo "build-dir=${{ github.workspace }}/QtProject_Linux/build/release" >> "$GITHUB_OUTPUT"
-          echo "package-dir=${{ github.workspace }}/release-files" >> "$GITHUB_OUTPUT"
-          mkdir -p ${{ github.workspace }}/release-files
+          echo "build-dir=${{ github.workspace }}/build-x86_64" >> "$GITHUB_OUTPUT"
+          echo "package-dir=${{ github.workspace }}/packages-x86_64" >> "$GITHUB_OUTPUT"
       - name: Install Dependencies
         run: |
           sudo apt-get update && sudo apt-get install -y --no-install-recommends \
@@ -33,33 +30,26 @@ jobs:
             libavutil-dev libswscale-dev
       - name: Configure and Build
         run: |
-          cmake -S ${{ steps.dirs.outputs.source-dir }} -B ${{ steps.dirs.outputs.build-dir }} \
+          cmake -S QtProject_Linux -B ${{ steps.dirs.outputs.build-dir }} \
             -DCMAKE_BUILD_TYPE=Release \
             -DCPACK_OUTPUT_FILE_PREFIX=${{ steps.dirs.outputs.package-dir }}
           cmake --build ${{ steps.dirs.outputs.build-dir }}
       - name: Generate Packages
-        working-directory: ${{ steps.dirs.outputs.build-dir }}
-        run: cpack
-      - name: Assemble, Archive, and Create AppImage
-        working-directory: ${{ steps.dirs.outputs.build-dir }}
+        run: cpack --config ${{ steps.dirs.outputs.build-dir }}/CPackConfig.cmake
+      - name: Create AppImage
         run: |
-          ${{ github.workspace }}/linuxdeployqt-continuous-x86_64.AppImage ./video-simili-duplicate-cleaner -bundle-non-qt-libs -qmake=/usr/lib/qt6/bin/qmake
-          mkdir VSDC_Portable
-          mv lib/ plugins/ doc/ qt.conf AppRun video-simili-duplicate-cleaner VSDC_Portable/
-          VERSION=$(grep 'set(CPACK_PACKAGE_VERSION' ${{ steps.dirs.outputs.source-dir }}/CMakeLists.txt | sed -E 's/.*"(.+)".*/\1/')
-          tar -czvf ${{ steps.dirs.outputs.package-dir }}/vsdc-portable-${VERSION}-x86_64.tar.gz VSDC_Portable/
-          cp ${{ steps.dirs.outputs.source-dir }}/usr/share/applications/video-simili-duplicate-cleaner.desktop VSDC_Portable/
-          cp ${{ steps.dirs.outputs.source-dir }}/usr/share/icons/hicolor/256x256/apps/video-simili-duplicate-cleaner.png VSDC_Portable/video-simili-duplicate-cleaner.png
-          ${{ github.workspace }}/linuxdeployqt-continuous-x86_64.AppImage ./VSDC_Portable/video-simili-duplicate-cleaner -appimage -qmake=/usr/lib/qt6/bin/qmake
+          ${{ github.workspace }}/linuxdeployqt-continuous-x86_64.AppImage \
+            ${{ steps.dirs.outputs.build-dir }}/video-simili-duplicate-cleaner \
+            -appimage \
+            -qmake=/usr/lib/qt6/bin/qmake
+          mv Video_Simili_Duplicate_Cleaner-*.AppImage ${{ steps.dirs.outputs.package-dir }}/
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: packages-x86_64
-          path: |
-            ${{ steps.dirs.outputs.package-dir }}/*.{deb,rpm,tar.gz}
-            ${{ steps.dirs.outputs.build-dir }}/*.AppImage
+          path: ${{ steps.dirs.outputs.package-dir }}
 
-# JOB 2: CONTAINERIZED aarch64 BUILD
+  # JOB 2: CONTAINERIZED aarch64 BUILD
   build_aarch64:
     name: Build for aarch64
     runs-on: ubuntu-22.04
@@ -67,94 +57,63 @@ jobs:
       - uses: actions/checkout@v4
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
       - name: Build and Package in ARM64 Container
         run: |
           docker run --rm -v ${{ github.workspace }}:/ws:rw --platform linux/arm64 \
             ubuntu:22.04 \
             /bin/bash -c " \
-              set -e && \
-              export DEBIAN_FRONTEND=noninteractive && \
-              apt-get update && \
-              apt-get install -y --no-install-recommends \
-                build-essential cmake pkg-config rpm \
-                qt6-base-dev:arm64 libopencv-dev:arm64 libavformat-dev:arm64 \
-                libavcodec-dev:arm64 libavutil-dev:arm64 libswscale-dev:arm64 \
-                libgl-dev:arm64 git wget && \
-              cd /ws && \
-              mkdir -p release-files && \
-              cmake -S QtProject_Linux -B QtProject_Linux/build/release \
+              set -e && export DEBIAN_FRONTEND=noninteractive && \
+              apt-get update && apt-get install -y --no-install-recommends \
+                build-essential cmake pkg-config rpm qt6-base-dev libopencv-dev \
+                libavformat-dev libavcodec-dev libavutil-dev libswscale-dev libgl-dev && \
+              cmake -S /ws/QtProject_Linux -B /ws/build-aarch64 \
                 -DCMAKE_BUILD_TYPE=Release \
-                -DCPACK_OUTPUT_FILE_PREFIX=release-files && \
-              cmake --build QtProject_Linux/build/release && \
-              cd QtProject_Linux/build/release && cpack \
+                -DCPACK_OUTPUT_FILE_PREFIX=/ws/packages-aarch64 && \
+              cmake --build /ws/build-aarch64 && \
+              cpack --config /ws/build-aarch64/CPackConfig.cmake \
             "
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: packages-aarch64
-          path: release-files/*.{deb,rpm}
+          path: packages-aarch64
 
-# JOB 3: CONTAINERIZED ARCH LINUX BUILDS (Final, Corrected Approach)
+  # JOB 3: CONTAINERIZED ARCH LINUX BUILDS
   build_arch:
     name: Build for Arch Linux (${{ matrix.arch }})
     runs-on: ubuntu-22.04
     strategy:
-      fail-fast: false
       matrix:
         arch: [x86_64, aarch64]
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
-
       - name: Build Arch Package in Container
         run: |
+          PLATFORM="linux/${{ matrix.arch == 'x86_64' && 'amd64' || 'arm64' }}"
+          IMAGE_NAME="archlinux:latest"
           if [ "${{ matrix.arch }}" = "aarch64" ]; then
-            PLATFORM="linux/arm64"
-            # 1. Download the official Arch Linux ARM tarball.
-            echo "--- Downloading Arch Linux ARM rootfs ---"
-            wget -c http://os.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz
-
-            # 2. Use 'docker import' to create a valid image from the tarball.
-            echo "--- Importing filesystem into Docker image ---"
-            IMAGE_NAME="archlinux-aarch64-custom:latest"
-            cat ArchLinuxARM-aarch64-latest.tar.gz | docker import - --platform $PLATFORM $IMAGE_NAME
-            IMAGE=$IMAGE_NAME
-          else
-            PLATFORM="linux/amd64"
-            IMAGE="archlinux:latest"
+            IMAGE_NAME="ghcr.io/${{ github.repository_owner }}/vsdc-archlinux-arm:latest"
           fi
-
-          # 3. Run the build process inside our container.
           docker run --rm -v ${{ github.workspace }}:/ws:rw --platform $PLATFORM \
-            $IMAGE \
+            $IMAGE_NAME \
             /bin/bash -c " \
               set -e && \
-              echo '--- Installing Dependencies ---' && \
               pacman-key --init && pacman-key --populate && \
               pacman -Syu --noconfirm base-devel cmake git qt6-base opencv ffmpeg && \
-              \
-              echo '--- Building Package ---' && \
               cd /ws/QtProject_Linux && \
-              useradd builder -m && \
-              chown -R builder:builder /ws && \
-              sudo -u builder makepkg -s --noconfirm && \
-              \
-              echo '--- Preparing Artifacts ---' && \
-              mkdir -p /ws/artifacts && \
-              find . -name '*.pkg.tar.zst' -exec mv {} /ws/artifacts/ \; \
+              useradd builder -m && chown -R builder:builder /ws && \
+              sudo -u builder makepkg -sf --noconfirm && \
+              find . -name '*.pkg.tar.zst' -exec mv {} /ws/packages-arch-${{ matrix.arch }}/ \; \
             "
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: packages-arch-${{ matrix.arch }}
-          path: artifacts
+          path: packages-arch-${{ matrix.arch }}
 
-  # JOB 4: CREATE RELEASE (Updated to include new Arch packages)
+  # JOB 4: CREATE RELEASE
   release:
     name: Create Release
     needs: [build_x86_64, build_aarch64, build_arch]
@@ -168,8 +127,4 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          files: |
-            artifacts/packages-x86_64/*
-            artifacts/packages-aarch64/*
-            artifacts/packages-arch-x86_64/*
-            artifacts/packages-arch-aarch64/*
+          files: artifacts/*/*
