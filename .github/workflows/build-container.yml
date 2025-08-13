@@ -1,21 +1,22 @@
 # .github/workflows/build-container.yml
-name: Build and Push Arch ARM Container
+name: Build and Push Arch ARM Build-Ready Container
 
 # This workflow is triggered manually from the Actions tab
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+  packages: write # Permission to write to the GitHub Container Registry
+
 jobs:
   build-and-push:
     name: Build and Push Arch ARM Image
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write # Permission to write to the GitHub Container Registry
-
     steps:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -26,19 +27,31 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create Dockerfile
+      - name: Create Dockerfile for Build-Ready Image
         run: |
           echo "--- Downloading Arch Linux ARM rootfs ---"
           wget -c http://os.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz
-          echo "FROM scratch" > Dockerfile
-          echo "ADD ArchLinuxARM-aarch64-latest.tar.gz /" >> Dockerfile
-          echo "CMD [\"/bin/bash\"]" >> Dockerfile
 
-      - name: Build and Push Image
+          echo "--- Creating Dockerfile ---"
+          cat <<EOF > Dockerfile
+          FROM scratch
+          ADD ArchLinuxARM-aarch64-latest.tar.gz /
+
+          # CRITICAL: Initialize pacman keyring and install build dependencies.
+          # This is the slow part that will now only run ONCE when you build this container.
+          RUN pacman-key --init && \
+              pacman-key --populate archlinuxarm && \
+              pacman -Syu --noconfirm && \
+              pacman -S --noconfirm base-devel cmake git qt6-base opencv ffmpeg
+
+          CMD ["/bin/bash"]
+          EOF
+
+      - name: Build and Push Build-Ready Image
         run: |
-          # Convert repository name to lowercase for the tag
-          IMAGE_NAME=$(echo "ghcr.io/${{ github.repository }}/archlinux-arm:latest" | tr '[:upper:]' '[:lower:]')
-          
-          # Build and push the image using the Dockerfile created in the previous step
-          docker build --platform linux/arm64 -t $IMAGE_NAME .
-          docker push $IMAGE_NAME
+          # The image tag is derived from your repo owner and a custom name
+          IMAGE_NAME=$(echo "ghcr.io/${{ github.repository_owner }}/vsdc-archlinux-arm-builder:latest" | tr '[:upper:]' '[:lower:]')
+
+          # Build and push the image using the Dockerfile
+          docker build --platform linux/arm64 -t \$IMAGE_NAME .
+          docker push \$IMAGE_NAME

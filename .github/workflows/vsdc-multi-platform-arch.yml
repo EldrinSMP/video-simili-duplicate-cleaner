@@ -1,13 +1,14 @@
 name: VSDC Linux Multi-Arch Build
 
 on:
-  push:
-    branches: [ "master" ]
-  pull_request:
-    branches: [ "master" ]
+#  push:
+#    branches: [ "master" ]
+#  pull_request:
+#    branches: [ "master" ]
+  workflow_dispatch:
 
 jobs:
-  # JOB 1: NATIVE x86_64 BUILD
+  # JOB 1: NATIVE x86_64 BUILD (Unchanged)
   build_x86_64:
     name: Build for x86_64
     runs-on: ubuntu-22.04
@@ -38,6 +39,7 @@ jobs:
         run: cpack --config ${{ steps.dirs.outputs.build-dir }}/CPackConfig.cmake
       - name: Create AppImage
         run: |
+          mkdir -p ${{ steps.dirs.outputs.package-dir }}
           ${{ github.workspace }}/linuxdeployqt-continuous-x86_64.AppImage \
             ${{ steps.dirs.outputs.build-dir }}/video-simili-duplicate-cleaner \
             -appimage \
@@ -49,9 +51,9 @@ jobs:
           name: packages-x86_64
           path: ${{ steps.dirs.outputs.package-dir }}
 
-  # JOB 2: CONTAINERIZED aarch64 BUILD
+  # JOB 2: CONTAINERIZED aarch64 BUILD (Unchanged)
   build_aarch64:
-    name: Build for aarch64
+    name: Build for aarch64 (DEB/RPM)
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -59,6 +61,7 @@ jobs:
         uses: docker/setup-qemu-action@v3
       - name: Build and Package in ARM64 Container
         run: |
+          mkdir -p ${{ github.workspace }}/packages-aarch64
           docker run --rm -v ${{ github.workspace }}:/ws:rw --platform linux/arm64 \
             ubuntu:22.04 \
             /bin/bash -c " \
@@ -78,7 +81,7 @@ jobs:
           name: packages-aarch64
           path: packages-aarch64
 
-  # JOB 3: CONTAINERIZED ARCH LINUX BUILDS
+  # JOB 3: CONTAINERIZED ARCH LINUX BUILDS (Corrected)
   build_arch:
     name: Build for Arch Linux (${{ matrix.arch }})
     runs-on: ubuntu-22.04
@@ -91,21 +94,42 @@ jobs:
         uses: docker/setup-qemu-action@v3
       - name: Build Arch Package in Container
         run: |
-          PLATFORM="linux/${{ matrix.arch == 'x86_64' && 'amd64' || 'arm64' }}"
+          PLATFORM="linux/amd64"
           IMAGE_NAME="archlinux:latest"
+          RUN_SETUP_COMMANDS="true"
+
           if [ "${{ matrix.arch }}" = "aarch64" ]; then
-            IMAGE_NAME="ghcr.io/${{ github.repository_owner }}/vsdc-archlinux-arm:latest"
+            PLATFORM="linux/arm64"
+            # Use our custom, pre-built image that already has dependencies.
+            IMAGE_NAME="ghcr.io/${{ github.repository_owner }}/vsdc-archlinux-arm-builder:latest"
+            # No setup needed for the custom image.
+            RUN_SETUP_COMMANDS="false"
           fi
+
           docker run --rm -v ${{ github.workspace }}:/ws:rw --platform $PLATFORM \
             $IMAGE_NAME \
             /bin/bash -c " \
               set -e && \
-              pacman-key --init && pacman-key --populate && \
-              pacman -Syu --noconfirm base-devel cmake git qt6-base opencv ffmpeg && \
+              if [ \"$RUN_SETUP_COMMANDS\" = \"true\" ]; then \
+                echo '--- Running setup for x86_64 ---' && \
+                pacman-key --init && \
+                pacman-key --populate && \
+                pacman -Syu --noconfirm --needed base-devel cmake git qt6-base opencv ffmpeg; \
+              fi && \
+              \
+              echo '--- Starting build process for ${{ matrix.arch }} ---' && \
+              mkdir -p /ws/packages-arch-${{ matrix.arch }} && \
               cd /ws/QtProject_Linux && \
-              useradd builder -m && chown -R builder:builder /ws && \
+              \
+              echo '--- Creating build user ---' && \
+              useradd builder -m && \
+              chown -R builder:builder /ws && \
+              \
+              echo '--- Running makepkg as builder ---' && \
               sudo -u builder makepkg -sf --noconfirm && \
-              find . -name '*.pkg.tar.zst' -exec mv {} /ws/packages-arch-${{ matrix.arch }}/ \; \
+              \
+              echo '--- Moving package ---' && \
+              find /ws/QtProject_Linux -maxdepth 1 -name '*.pkg.tar.zst' -exec mv {} /ws/packages-arch-${{ matrix.arch }}/ \; \
             "
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
@@ -113,7 +137,7 @@ jobs:
           name: packages-arch-${{ matrix.arch }}
           path: packages-arch-${{ matrix.arch }}
 
-  # JOB 4: CREATE RELEASE
+  # JOB 4: CREATE RELEASE (Unchanged)
   release:
     name: Create Release
     needs: [build_x86_64, build_aarch64, build_arch]
