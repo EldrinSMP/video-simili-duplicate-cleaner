@@ -119,8 +119,8 @@ jobs:
           # Set the correct Docker platform and image
           if [ "${{ matrix.arch }}" = "aarch64" ]; then
             PLATFORM="linux/arm64"
-            # FIX #1: Use the correct Arch Linux ARM image
-            IMAGE="archlinuxarm/archlinux"
+            # FIX #1: Use a valid Arch Linux ARM image
+            IMAGE="lopsided/archlinux-arm"
           else
             PLATFORM="linux/amd64"
             IMAGE="archlinux:latest"
@@ -135,14 +135,17 @@ jobs:
               pacman -Syu --noconfirm base-devel cmake git qt6-base opencv ffmpeg && \
               \
               echo '--- Building Package ---' && \
-              cd /ws && \
+              # FIX #2: Change into the directory that contains the PKGBUILD file
+              cd /ws/QtProject_Linux && \
               useradd builder -m && \
+              # Give the new user ownership of the whole workspace to avoid permission errors
               chown -R builder:builder /ws && \
-              # FIX #2: Run makepkg from the correct directory (/ws)
-              sudo -u builder bash -c 'cd /ws && makepkg -s --noconfirm' && \
+              # Run makepkg from the correct directory
+              sudo -u builder makepkg -s --noconfirm && \
               \
               echo '--- Preparing Artifacts ---' && \
               mkdir -p /ws/artifacts && \
+              # Move the final package to the artifacts directory
               mv *.pkg.tar.zst /ws/artifacts/ \
             "
       - name: Upload Artifacts
