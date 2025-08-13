@@ -1,12 +1,11 @@
 # .github/workflows/build-container.yml
 name: Build and Push Arch ARM Container
 
-# This workflow is triggered manually
+# This workflow is triggered manually from the Actions tab
 on:
   workflow_dispatch:
 
-jobs:
-  build-and-push:
+jobs build-and-push:
     name: Build and Push Arch ARM Image
     runs-on: ubuntu-latest
     permissions:
@@ -26,19 +25,19 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and Push Image
+      - name: Create Dockerfile
         run: |
-          # 1. Download the official Arch Linux ARM tarball.
           echo "--- Downloading Arch Linux ARM rootfs ---"
           wget -c http://os.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz
-
-          # 2. Create a Dockerfile to build our image from the local tarball.
           echo "FROM scratch" > Dockerfile
           echo "ADD ArchLinuxARM-aarch64-latest.tar.gz /" >> Dockerfile
           echo "CMD [\"/bin/bash\"]" >> Dockerfile
 
-          # 3. Build the image and push it to the registry.
-          # The image will be named after your repository, converted to lowercase.
+      - name: Build and Push Image
+        run: |
+          # Convert repository name to lowercase for the tag
           IMAGE_NAME=$(echo "ghcr.io/${{ github.repository }}/archlinux-arm:latest" | tr '[:upper:]' '[:lower:]')
+          
+          # Build and push the image using the Dockerfile created in the previous step
           docker build --platform linux/arm64 -t $IMAGE_NAME .
           docker push $IMAGE_NAME
