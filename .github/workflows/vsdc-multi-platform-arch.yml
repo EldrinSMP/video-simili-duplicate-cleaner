@@ -8,23 +8,102 @@ on:
     branches: [ "master" ]
 
 jobs:
-  # JOB 1: NATIVE x86_64 BUILD (Unchanged)
+  # JOB 1: NATIVE x86_64 BUILD (Full definition)
   build_x86_64:
-    # ... (this job remains exactly the same as the successful version) ...
+    name: Build for x86_64
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download linuxdeployqt
+        run: |
+          wget -c -nv "https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage"
+          chmod a+x linuxdeployqt-continuous-x86_64.AppImage
+      - name: Define Directory Paths and Create
+        id: dirs
+        run: |
+          echo "source-dir=${{ github.workspace }}/QtProject_Linux" >> "$GITHUB_OUTPUT"
+          echo "build-dir=${{ github.workspace }}/QtProject_Linux/build/release" >> "$GITHUB_OUTPUT"
+          echo "package-dir=${{ github.workspace }}/release-files" >> "$GITHUB_OUTPUT"
+          mkdir -p ${{ github.workspace }}/release-files
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends \
+            build-essential cmake pkg-config rpm libfuse2 libgl-dev \
+            qt6-base-dev libopencv-dev libavformat-dev libavcodec-dev \
+            libavutil-dev libswscale-dev
+      - name: Configure and Build
+        run: |
+          cmake -S ${{ steps.dirs.outputs.source-dir }} -B ${{ steps.dirs.outputs.build-dir }} \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCPACK_OUTPUT_FILE_PREFIX=${{ steps.dirs.outputs.package-dir }}
+          cmake --build ${{ steps.dirs.outputs.build-dir }}
+      - name: Generate Packages
+        working-directory: ${{ steps.dirs.outputs.build-dir }}
+        run: cpack
+      - name: Assemble, Archive, and Create AppImage
+        working-directory: ${{ steps.dirs.outputs.build-dir }}
+        run: |
+          ${{ github.workspace }}/linuxdeployqt-continuous-x86_64.AppImage ./video-simili-duplicate-cleaner -bundle-non-qt-libs -qmake=/usr/lib/qt6/bin/qmake
+          mkdir VSDC_Portable
+          mv lib/ plugins/ doc/ qt.conf AppRun video-simili-duplicate-cleaner VSDC_Portable/
+          VERSION=$(grep 'set(CPACK_PACKAGE_VERSION' ${{ steps.dirs.outputs.source-dir }}/CMakeLists.txt | sed -E 's/.*"(.+)".*/\1/')
+          tar -czvf ${{ steps.dirs.outputs.package-dir }}/vsdc-portable-${VERSION}-x86_64.tar.gz VSDC_Portable/
+          cp ${{ steps.dirs.outputs.source-dir }}/usr/share/applications/video-simili-duplicate-cleaner.desktop VSDC_Portable/
+          cp ${{ steps.dirs.outputs.source-dir }}/usr/share/icons/hicolor/256x256/apps/video-simili-duplicate-cleaner.png VSDC_Portable/video-simili-duplicate-cleaner.png
+          ${{ github.workspace }}/linuxdeployqt-continuous-x86_64.AppImage ./VSDC_Portable/video-simili-duplicate-cleaner -appimage -qmake=/usr/lib/qt6/bin/qmake
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages-x86_64
+          path: |
+            ${{ steps.dirs.outputs.package-dir }}/*.{deb,rpm,tar.gz}
+            ${{ steps.dirs.outputs.build-dir }}/*.AppImage
 
-  # JOB 2: CONTAINERIZED aarch64 BUILD (Unchanged)
+  # JOB 2: CONTAINERIZED aarch64 BUILD (Full definition)
   build_aarch64:
-    # ... (this job also remains exactly the same) ...
+    name: Build for aarch64
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build and Package in ARM64 Container
+        run: |
+          docker run --rm -v ${{ github.workspace }}:/ws:rw --platform linux/arm64 \
+            ubuntu:22.04 \
+            /bin/bash -c " \
+              set -e && \
+              export DEBIAN_FRONTEND=noninteractive && \
+              apt-get update && \
+              apt-get install -y --no-install-recommends \
+                build-essential cmake pkg-config rpm \
+                qt6-base-dev libopencv-dev libavformat-dev libavcodec-dev \
+                libavutil-dev libswscale-dev git wget && \
+              cd /ws && \
+              mkdir -p release-files && \
+              cmake -S QtProject_Linux -B QtProject_Linux/build/release \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DCPACK_OUTPUT_FILE_PREFIX=release-files && \
+              cmake --build QtProject_Linux/build/release && \
+              cd QtProject_Linux/build/release && cpack \
+            "
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages-aarch64
+          path: release-files/*.{deb,rpm}
 
   # JOB 3: CONTAINERIZED ARCH LINUX BUILDS (New Job)
   build_arch:
     name: Build for Arch Linux (${{ matrix.arch }})
-    needs: [build_x86_64, build_aarch64] # Optional: run after other builds
+    needs: [build_x86_64, build_aarch64]
     runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:
-        arch: [x86_64, aarch64] # We will run for both architectures
+        arch: [x86_64, aarch64]
 
     steps:
       - name: Checkout repository
@@ -36,7 +115,6 @@ jobs:
 
       - name: Build Arch Package in Container
         run: |
-          # Set the correct Docker platform and image based on the matrix architecture
           if [ "${{ matrix.arch }}" = "aarch64" ]; then
             PLATFORM="linux/arm64"
             IMAGE="arm64v8/archlinux"
@@ -45,7 +123,6 @@ jobs:
             IMAGE="archlinux:latest"
           fi
 
-          # Run the entire build process inside a clean Arch Linux container
           docker run --rm -v ${{ github.workspace }}:/ws:rw --platform $PLATFORM \
             $IMAGE \
             /bin/bash -c " \
@@ -55,15 +132,12 @@ jobs:
               \
               echo '--- Building Package ---' && \
               cd /ws && \
-              # makepkg needs to run as a non-root user. We'll create one.
               useradd builder -m && \
               chown -R builder:builder /ws && \
-              # Run makepkg as the 'builder' user
               sudo -u builder makepkg -s --noconfirm && \
               \
               echo '--- Preparing Artifacts ---' && \
               mkdir -p /ws/artifacts && \
-              # Move the final package to the artifacts directory
               mv *.pkg.tar.zst /ws/artifacts/ \
             "
       - name: Upload Artifacts
@@ -75,7 +149,7 @@ jobs:
   # JOB 4: CREATE RELEASE (Updated to include new Arch packages)
   release:
     name: Create Release
-    needs: [build_x86_64, build_aarch64, build_arch] # Add the new build_arch job
+    needs: [build_x86_64, build_aarch64, build_arch]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
