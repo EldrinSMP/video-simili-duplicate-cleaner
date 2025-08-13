@@ -96,10 +96,9 @@ jobs:
           name: packages-aarch64
           path: release-files/*.{deb,rpm}
 
-# JOB 3: CONTAINERIZED ARCH LINUX BUILDS (Corrected)
+# JOB 3: CONTAINERIZED ARCH LINUX BUILDS (New Robust Approach)
   build_arch:
     name: Build for Arch Linux (${{ matrix.arch }})
-    needs: [build_x86_64, build_aarch64]
     runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
@@ -116,36 +115,39 @@ jobs:
 
       - name: Build Arch Package in Container
         run: |
-          # Set the correct Docker platform and image
           if [ "${{ matrix.arch }}" = "aarch64" ]; then
             PLATFORM="linux/arm64"
-            # FIX #1: Use a valid Arch Linux ARM image
-            IMAGE="lopsided/archlinux-arm"
+            # Define the source for our build environment
+            IMAGE_SOURCE_URL="http://os.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz"
+            # Create a Dockerfile to build our own image
+            echo "FROM scratch" > Dockerfile
+            echo "ADD $IMAGE_SOURCE_URL /" >> Dockerfile
+            echo "CMD [\"/bin/bash\"]" >> Dockerfile
+            # Build the image
+            docker build -t archlinux-aarch64-custom .
+            IMAGE="archlinux-aarch64-custom"
           else
             PLATFORM="linux/amd64"
             IMAGE="archlinux:latest"
           fi
 
+          # Run the build process inside our container
           docker run --rm -v ${{ github.workspace }}:/ws:rw --platform $PLATFORM \
             $IMAGE \
             /bin/bash -c " \
               set -e && \
               echo '--- Installing Dependencies ---' && \
-              pacman-key --init && pacman-key --populate && \
+              pacman-key --init && pacman-key --populate archlinux && \
               pacman -Syu --noconfirm base-devel cmake git qt6-base opencv ffmpeg && \
               \
               echo '--- Building Package ---' && \
-              # FIX #2: Change into the directory that contains the PKGBUILD file
               cd /ws/QtProject_Linux && \
               useradd builder -m && \
-              # Give the new user ownership of the whole workspace to avoid permission errors
               chown -R builder:builder /ws && \
-              # Run makepkg from the correct directory
               sudo -u builder makepkg -s --noconfirm && \
               \
               echo '--- Preparing Artifacts ---' && \
               mkdir -p /ws/artifacts && \
-              # Move the final package to the artifacts directory
               mv *.pkg.tar.zst /ws/artifacts/ \
             "
       - name: Upload Artifacts
