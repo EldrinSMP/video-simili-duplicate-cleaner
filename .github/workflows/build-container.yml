@@ -2,7 +2,7 @@
 name: Build and Push Arch ARM Build-Ready Container
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: # Run this manually when you need to update the build image
 
 permissions:
   contents: read
@@ -29,31 +29,26 @@ jobs:
       - name: Create Dockerfile for Build-Ready Image
         run: |
           echo "--- Downloading Arch Linux ARM rootfs ---"
-          wget -c http://os.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz
-          
+          wget -q http://os.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz
+
           echo "--- Creating Dockerfile ---"
           cat <<EOF > Dockerfile
           FROM scratch
           ADD ArchLinuxARM-aarch64-latest.tar.gz /
 
-          # CRITICAL: Initialize pacman keyring and install build dependencies.
-          # This is the slow part that will now only run ONCE when you build this container.
+          # CRITICAL FIX: Initialize pacman keyring before updating.
+          # This prevents the build from hanging.
           RUN pacman-key --init && \
               pacman-key --populate archlinuxarm && \
               pacman -Syu --noconfirm && \
-              pacman -S --noconfirm base-devel cmake git qt6-base opencv ffmpeg
+              pacman -S --noconfirm --needed base-devel cmake git qt6-base opencv ffmpeg
 
           CMD ["/bin/bash"]
           EOF
 
       - name: Build and Push Build-Ready Image
         run: |
-          # The image tag is derived from your repo owner and a custom name
-          IMAGE_NAME=$(echo "ghcr.io/${{ github.repository_owner }}/vsdc-archlinux-arm-builder:latest" | tr '[:upper:]' '[:lower:]')
-          
-          # Echo the name for debugging
+          IMAGE_NAME="ghcr.io/${{ github.repository_owner }}/vsdc-archlinux-arm-builder:latest"
           echo "Building and pushing image: $IMAGE_NAME"
-
-          # Build and push the image using the Dockerfile (CORRECTED)
-          docker build --platform linux/arm64 -t $IMAGE_NAME .
-          docker push $IMAGE_NAME
+          # Build and push for ARM64 platform
+          docker buildx build --platform linux/arm64 -t $IMAGE_NAME . --push
