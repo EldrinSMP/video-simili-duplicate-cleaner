@@ -2,8 +2,6 @@
 name: Build & Package
 
 on:
-  # This workflow is currently set to run only when manually dispatched.
-  # Re-enable the push/pull_request triggers below when you are ready.
   workflow_dispatch:
   # push:
   #   branches: [ "master" ]
@@ -22,7 +20,8 @@ jobs:
         run: |
           echo "build-dir=${{ github.workspace }}/build-x86_64" >> "$GITHUB_OUTPUT"
           echo "package-dir=${{ github.workspace }}/packages-x86_64" >> "$GITHUB_OUTPUT"
-          mkdir -p ${{ steps.dirs.outputs.package-dir }}
+          # CORRECTED: The mkdir command was missing its argument.
+          mkdir -p ${{ github.workspace }}/packages-x86_64
       - name: Install Dependencies
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential cmake pkg-config rpm libfuse2 libgl-dev qt6-base-dev libopencv-dev libavformat-dev libavcodec-dev libavutil-dev libswscale-dev
       - name: Configure and Build
@@ -49,6 +48,7 @@ jobs:
           name: packages-x86_64
           path: ${{ steps.dirs.outputs.package-dir }}
 
+  # (The rest of the file remains unchanged)
   # JOB 2: Non-Arch aarch64 Packages
   build_non_arch_aarch64:
     name: Build Non-Arch Packages (aarch64)
@@ -118,7 +118,7 @@ jobs:
         run: mkdir -p ${{ github.workspace }}/packages-arch-aarch64
       - name: Build in Pre-built Arch Container
         run: |
-          IMAGE_NAME="ghcr.io/${{ github.repository_owner }}/vsdc-archlinux-arm-builder:latest"
+          IMAGE_NAME=$(echo "ghcr.io/${{ github.repository_owner }}/vsdc-archlinux-arm-builder:latest" | tr '[:upper:]' '[:lower:]')
           docker pull $IMAGE_NAME
           docker run --rm -v ${{ github.workspace }}:/ws:rw --platform linux/arm64 $IMAGE_NAME /bin/bash -c "
             set -e && cd /ws/QtProject_Linux && useradd builder -m && chown -R builder:builder /ws

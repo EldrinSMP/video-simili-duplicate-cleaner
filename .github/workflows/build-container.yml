@@ -29,7 +29,6 @@ jobs:
       - name: Create Dockerfile for Build-Ready Image
         run: |
           echo "--- Downloading Arch Linux ARM rootfs (with progress) ---"
-          # CORRECTED WGET: Made verbose to show progress and errors.
           wget --show-progress --progress=bar:force:noscroll http://os.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz
 
           echo "--- Creating Dockerfile ---"
@@ -38,7 +37,6 @@ jobs:
           ADD ArchLinuxARM-aarch64-latest.tar.gz /
 
           # CRITICAL FIX: Initialize pacman keyring before updating.
-          # This prevents the build from hanging.
           RUN pacman-key --init && \
               pacman-key --populate archlinuxarm && \
               pacman -Syu --noconfirm && \
@@ -49,7 +47,8 @@ jobs:
 
       - name: Build and Push Build-Ready Image
         run: |
-          IMAGE_NAME="ghcr.io/${{ github.repository_owner }}/vsdc-archlinux-arm-builder:latest"
+          # CORRECTED: Convert the repository owner (username) to lowercase for the image tag.
+          IMAGE_NAME=$(echo "ghcr.io/${{ github.repository_owner }}/vsdc-archlinux-arm-builder:latest" | tr '[:upper:]' '[:lower:]')
+
           echo "Building and pushing image: $IMAGE_NAME"
-          # Build and push for ARM64 platform
           docker buildx build --platform linux/arm64 -t $IMAGE_NAME . --push
