@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write # Permission to write to the GitHub Container Registry
+      packages: write
 
     steps:
       - name: Set up QEMU
@@ -26,11 +26,20 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # NEW DEDICATED STEP
+      - name: Create Dockerfile
+        run: |
+          echo "--- Downloading Arch Linux ARM rootfs ---"
+          wget -c http://os.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz
+          echo "FROM scratch" > Dockerfile
+          echo "ADD ArchLinuxARM-aarch64-latest.tar.gz /" >> Dockerfile
+          echo "CMD [\"/bin/bash\"]" >> Dockerfile
+
       - name: Build and Push Image
         run: |
           # Convert repository name to lowercase for the tag
           IMAGE_NAME=$(echo "ghcr.io/${{ github.repository }}/archlinux-arm:latest" | tr '[:upper:]' '[:lower:]')
 
-          # Build and push the image using the lowercase name
+          # Build and push the image using the Dockerfile created in the previous step
           docker build --platform linux/arm64 -t $IMAGE_NAME .
           docker push $IMAGE_NAME
