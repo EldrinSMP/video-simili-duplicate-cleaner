@@ -41,11 +41,13 @@ jobs:
 
           export PATH="/usr/lib/qt6/bin:$PATH"
 
+          # 1. Create the AppImage. This also populates the build directory with dependencies.
           ./linuxdeployqt-continuous-x86_64.AppImage ${{ steps.dirs.outputs.build-dir }}/video-simili-duplicate-cleaner -appimage -qmake=/usr/lib/qt6/bin/qmake
           mv Video_Simili_Duplicate_Cleaner-*.AppImage ${{ steps.dirs.outputs.package-dir }}/
 
-          ./linuxdeployqt-continuous-x86_64.AppImage ${{ steps.dirs.outputs.build-dir }}/video-simili-duplicate-cleaner -bundle-non-qt-libs
-          mv Video_Simili_Duplicate_Cleaner-*-x86_64.tar.gz ${{ steps.dirs.outputs.package-dir }}/
+          # 2. CORRECTED: Manually create the portable .tar.gz archive from the populated build directory.
+          APP_VERSION=$(git rev-parse --short HEAD)
+          tar -czvf ${{ steps.dirs.outputs.package-dir }}/Video_Simili_Duplicate_Cleaner-${APP_VERSION}-x86_64-portable.tar.gz -C ${{ steps.dirs.outputs.build-dir }} .
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -65,8 +67,7 @@ jobs:
         run: |
           docker run --rm -v ${{ github.workspace }}:/ws:rw --platform linux/arm64 ubuntu:22.04 /bin/bash -c "
             set -e && export DEBIAN_FRONTEND=noninteractive
-            # CORRECTED: Added 'ca-certificates' to fix the SSL verification issue.
-            apt-get update && apt-get install -y --no-install-recommends ca-certificates build-essential cmake pkg-config rpm qt6-base-dev libopencv-dev libavformat-dev libavcodec-dev libavutil-dev libswscale-dev libgl-dev wget libfuse2
+            apt-get update && apt-get install -y --no-install-recommends ca-certificates build-essential cmake pkg-config rpm qt6-base-dev libopencv-dev libavformat-dev libavcodec-dev libavutil-dev libswscale-dev libgl-dev wget libfuse2 git
 
             cmake -S /ws/QtProject_Linux -B /ws/build-aarch64 -DCMAKE_BUILD_TYPE=Release -DCPACK_OUTPUT_FILE_PREFIX=/ws/packages-aarch64
             cmake --build /ws/build-aarch64 && cpack --config /ws/build-aarch64/CPackConfig.cmake
@@ -82,8 +83,9 @@ jobs:
             ./linuxdeployqt-aarch64.AppImage ./video-simili-duplicate-cleaner -appimage -qmake=/usr/lib/aarch64-linux-gnu/qt6/bin/qmake
             mv ./Video_Simili_Duplicate_Cleaner-*.AppImage /ws/packages-aarch64/
 
-            ./linuxdeployqt-aarch64.AppImage ./video-simili-duplicate-cleaner -bundle-non-qt-libs
-            mv ./Video_Simili_Duplicate_Cleaner-*-aarch64.tar.gz /ws/packages-aarch64/
+            # CORRECTED: Manually create the portable .tar.gz archive.
+            APP_VERSION=\$(git rev-parse --short HEAD)
+            tar -czvf /ws/packages-aarch64/Video_Simili_Duplicate_Cleaner-\${APP_VERSION}-aarch64-portable.tar.gz -C . .
           "
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
