@@ -117,23 +117,21 @@ jobs:
         run: |
           if [ "${{ matrix.arch }}" = "aarch64" ]; then
             PLATFORM="linux/arm64"
-            # 1. Download the official Arch Linux ARM tarball first.
             echo "--- Downloading Arch Linux ARM rootfs ---"
             wget -c http://os.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz
-            # 2. Create a Dockerfile to build our image from the LOCAL tarball.
             echo "FROM scratch" > Dockerfile
             echo "ADD ArchLinuxARM-aarch64-latest.tar.gz /" >> Dockerfile
             echo "CMD [\"/bin/bash\"]" >> Dockerfile
-            # 3. Build the custom image.
             echo "--- Building custom Docker image ---"
-            docker build -t archlinux-aarch64-custom .
+            # THE FIX: Add the --load flag to make the image available locally
+            docker build --platform $PLATFORM --load -t archlinux-aarch64-custom .
             IMAGE="archlinux-aarch64-custom"
           else
             PLATFORM="linux/amd64"
             IMAGE="archlinux:latest"
           fi
 
-          # 4. Run the build process inside our container.
+          # Run the build process inside our container.
           docker run --rm -v ${{ github.workspace }}:/ws:rw --platform $PLATFORM \
             $IMAGE \
             /bin/bash -c " \
