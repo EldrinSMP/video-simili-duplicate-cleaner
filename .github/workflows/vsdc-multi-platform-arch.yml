@@ -96,7 +96,7 @@ jobs:
           name: packages-aarch64
           path: release-files/*.{deb,rpm}
 
-  # JOB 3: CONTAINERIZED ARCH LINUX BUILDS (New Job)
+# JOB 3: CONTAINERIZED ARCH LINUX BUILDS (Corrected)
   build_arch:
     name: Build for Arch Linux (${{ matrix.arch }})
     needs: [build_x86_64, build_aarch64]
@@ -116,9 +116,11 @@ jobs:
 
       - name: Build Arch Package in Container
         run: |
+          # Set the correct Docker platform and image
           if [ "${{ matrix.arch }}" = "aarch64" ]; then
             PLATFORM="linux/arm64"
-            IMAGE="arm64v8/archlinux"
+            # FIX #1: Use the correct Arch Linux ARM image
+            IMAGE="archlinuxarm/archlinux"
           else
             PLATFORM="linux/amd64"
             IMAGE="archlinux:latest"
@@ -129,13 +131,15 @@ jobs:
             /bin/bash -c " \
               set -e && \
               echo '--- Installing Dependencies ---' && \
+              pacman-key --init && pacman-key --populate && \
               pacman -Syu --noconfirm base-devel cmake git qt6-base opencv ffmpeg && \
               \
               echo '--- Building Package ---' && \
               cd /ws && \
               useradd builder -m && \
               chown -R builder:builder /ws && \
-              sudo -u builder makepkg -s --noconfirm && \
+              # FIX #2: Run makepkg from the correct directory (/ws)
+              sudo -u builder bash -c 'cd /ws && makepkg -s --noconfirm' && \
               \
               echo '--- Preparing Artifacts ---' && \
               mkdir -p /ws/artifacts && \
