@@ -49,7 +49,7 @@ jobs:
           name: packages-x86_64
           path: ${{ steps.dirs.outputs.package-dir }}
 
-# JOB 2: Non-Arch aarch64 Packages
+  # JOB 2: Non-Arch aarch64 Packages
   build_non_arch_aarch64:
     name: Build Non-Arch Packages (aarch64)
     runs-on: ubuntu-22.04
@@ -64,25 +64,21 @@ jobs:
             set -e && export DEBIAN_FRONTEND=noninteractive
             apt-get update && apt-get install -y --no-install-recommends ca-certificates build-essential cmake pkg-config rpm qt6-base-dev libopencv-dev libavformat-dev libavcodec-dev libavutil-dev libswscale-dev libgl-dev wget libfuse2 git
 
-            # --- Build CPack Packages ---
             cmake -S /ws/QtProject_Linux -B /ws/build-aarch64 -DCMAKE_BUILD_TYPE=Release -DCPACK_OUTPUT_FILE_PREFIX=/ws/packages-aarch64
             cmake --build /ws/build-aarch64 && cpack --config /ws/build-aarch64/CPackConfig.cmake
 
-            # --- Build linuxdeployqt from source to guarantee compatibility ---
-            git clone --depth 1 https://github.com/probonopd/linuxdeployqt.git /tmp/ldq
-            cmake -S /tmp/ldq -B /tmp/ldq/build
-            cmake --build /tmp/ldq/build
-
-            # --- Prepare for AppImage/Portable ---
             cd /ws/build-aarch64
+
             cp /ws/QtProject_Linux/usr/share/applications/video-simili-duplicate-cleaner.desktop .
             cp /ws/QtProject_Linux/usr/share/icons/hicolor/256x256/apps/video-simili-duplicate-cleaner.png .
 
-            # DEFINITIVE FIX: Export the Qt6 bin directory to the PATH. Note the escaped \$PATH.
-            export PATH="/usr/lib/aarch64-linux-gnu/qt6/bin:\$PATH"
+            # THE DEFINITIVE FIX: Download, extract, and run the AppImage to bypass execution errors.
+            wget --show-progress --progress=bar:force:noscroll https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-aarch64.AppImage
+            chmod a+x ./linuxdeployqt-continuous-aarch64.AppImage
+            ./linuxdeployqt-continuous-aarch64.AppImage --appimage-extract
 
-            # --- Generate AppImage and Portable using the compiled binary ---
-            /tmp/ldq/build/tools/linuxdeployqt/linuxdeployqt ./video-simili-duplicate-cleaner -appimage -qmake=/usr/lib/aarch64-linux-gnu/qt6/bin/qmake
+            export PATH="/usr/lib/aarch64-linux-gnu/qt6/bin:\$PATH"
+            ./squashfs-root/AppRun ./video-simili-duplicate-cleaner -appimage -qmake=/usr/lib/aarch64-linux-gnu/qt6/bin/qmake
             mv ./Video_Simili_Duplicate_Cleaner-*.AppImage /ws/packages-aarch64/
 
             APP_VERSION=\$(git rev-parse --short HEAD)
@@ -108,7 +104,6 @@ jobs:
             set -e && pacman-key --init && pacman-key --populate && pacman -Syu --noconfirm --needed base-devel cmake git qt6-base opencv ffmpeg
             cd /ws/QtProject_Linux && useradd builder -m && chown -R builder:builder /ws
             sudo -u builder makepkg -sf --noconfirm
-            # CORRECTED: Broaden the search to find the package regardless of compression.
             find . -name '*.pkg.tar.*' -exec mv {} /ws/packages-arch-x86_64/ \;
           "
       - name: Upload Artifacts
@@ -139,7 +134,6 @@ jobs:
           docker run --rm -v ${{ github.workspace }}:/ws:rw --platform linux/arm64 $IMAGE_NAME /bin/bash -c "
             set -e && cd /ws/QtProject_Linux && useradd builder -m && chown -R builder:builder /ws
             sudo -u builder makepkg -sf --noconfirm
-            # CORRECTED: Broaden the search to find the package regardless of compression.
             find . -name '*.pkg.tar.*' -exec mv {} /ws/packages-arch-aarch64/ \;
           "
       - name: Upload Artifacts
