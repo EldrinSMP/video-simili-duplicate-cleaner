@@ -59,7 +59,7 @@ jobs:
             ${{ steps.dirs.outputs.package-dir }}/*.{deb,rpm,tar.gz}
             ${{ steps.dirs.outputs.build-dir }}/*.AppImage
 
-  # JOB 2: CONTAINERIZED aarch64 BUILD (Full definition)
+# JOB 2: CONTAINERIZED aarch64 BUILD
   build_aarch64:
     name: Build for aarch64
     runs-on: ubuntu-22.04
@@ -79,8 +79,9 @@ jobs:
               apt-get update && \
               apt-get install -y --no-install-recommends \
                 build-essential cmake pkg-config rpm \
-                qt6-base-dev libopencv-dev libavformat-dev libavcodec-dev \
-                libavutil-dev libswscale-dev git wget && \
+                qt6-base-dev:arm64 libopencv-dev:arm64 libavformat-dev:arm64 \
+                libavcodec-dev:arm64 libavutil-dev:arm64 libswscale-dev:arm64 \
+                libgl-dev:arm64 git wget && \
               cd /ws && \
               mkdir -p release-files && \
               cmake -S QtProject_Linux -B QtProject_Linux/build/release \
