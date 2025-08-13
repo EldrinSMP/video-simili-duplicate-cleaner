@@ -1,13 +1,12 @@
 # .github/workflows/build-container.yml
 name: Build and Push Arch ARM Build-Ready Container
 
-# This workflow is triggered manually from the Actions tab
 on:
   workflow_dispatch:
 
 permissions:
   contents: read
-  packages: write # Permission to write to the GitHub Container Registry
+  packages: write
 
 jobs:
   build-and-push:
@@ -31,7 +30,7 @@ jobs:
         run: |
           echo "--- Downloading Arch Linux ARM rootfs ---"
           wget -c http://os.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz
-
+          
           echo "--- Creating Dockerfile ---"
           cat <<EOF > Dockerfile
           FROM scratch
@@ -51,7 +50,10 @@ jobs:
         run: |
           # The image tag is derived from your repo owner and a custom name
           IMAGE_NAME=$(echo "ghcr.io/${{ github.repository_owner }}/vsdc-archlinux-arm-builder:latest" | tr '[:upper:]' '[:lower:]')
+          
+          # Echo the name for debugging
+          echo "Building and pushing image: $IMAGE_NAME"
 
-          # Build and push the image using the Dockerfile
-          docker build --platform linux/arm64 -t \$IMAGE_NAME .
-          docker push \$IMAGE_NAME
+          # Build and push the image using the Dockerfile (CORRECTED)
+          docker build --platform linux/arm64 -t $IMAGE_NAME .
+          docker push $IMAGE_NAME
