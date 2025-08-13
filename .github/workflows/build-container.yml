@@ -36,8 +36,10 @@ jobs:
           FROM scratch
           ADD ArchLinuxARM-aarch64-latest.tar.gz /
 
-          # CRITICAL FIX: Initialize pacman keyring before updating.
-          RUN pacman-key --init && \
+          # CORRECTED: Disable Landlock to prevent conflicts in the container environment.
+          # Then, initialize pacman keyring and install dependencies.
+          RUN echo 'DisableLandlock = Yes' >> /etc/pacman.conf && \
+              pacman-key --init && \
               pacman-key --populate archlinuxarm && \
               pacman -Syu --noconfirm && \
               pacman -S --noconfirm --needed base-devel cmake git qt6-base opencv ffmpeg
@@ -47,8 +49,6 @@ jobs:
 
       - name: Build and Push Build-Ready Image
         run: |
-          # CORRECTED: Convert the repository owner (username) to lowercase for the image tag.
           IMAGE_NAME=$(echo "ghcr.io/${{ github.repository_owner }}/vsdc-archlinux-arm-builder:latest" | tr '[:upper:]' '[:lower:]')
-
           echo "Building and pushing image: $IMAGE_NAME"
           docker buildx build --platform linux/arm64 -t $IMAGE_NAME . --push

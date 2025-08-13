@@ -39,7 +39,6 @@ jobs:
           wget -q https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage
           chmod a+x linuxdeployqt-continuous-x86_64.AppImage
 
-          # Explicitly add the Qt6 bin directory to the PATH to ensure linuxdeployqt finds it.
           export PATH="/usr/lib/qt6/bin:$PATH"
 
           ./linuxdeployqt-continuous-x86_64.AppImage ${{ steps.dirs.outputs.build-dir }}/video-simili-duplicate-cleaner -appimage -qmake=/usr/lib/qt6/bin/qmake
@@ -66,7 +65,8 @@ jobs:
         run: |
           docker run --rm -v ${{ github.workspace }}:/ws:rw --platform linux/arm64 ubuntu:22.04 /bin/bash -c "
             set -e && export DEBIAN_FRONTEND=noninteractive
-            apt-get update && apt-get install -y --no-install-recommends build-essential cmake pkg-config rpm qt6-base-dev libopencv-dev libavformat-dev libavcodec-dev libavutil-dev libswscale-dev libgl-dev wget libfuse2
+            # CORRECTED: Added 'ca-certificates' to fix the SSL verification issue.
+            apt-get update && apt-get install -y --no-install-recommends ca-certificates build-essential cmake pkg-config rpm qt6-base-dev libopencv-dev libavformat-dev libavcodec-dev libavutil-dev libswscale-dev libgl-dev wget libfuse2
 
             cmake -S /ws/QtProject_Linux -B /ws/build-aarch64 -DCMAKE_BUILD_TYPE=Release -DCPACK_OUTPUT_FILE_PREFIX=/ws/packages-aarch64
             cmake --build /ws/build-aarch64 && cpack --config /ws/build-aarch64/CPackConfig.cmake
