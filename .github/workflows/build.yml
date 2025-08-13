@@ -48,8 +48,7 @@ jobs:
           name: packages-x86_64
           path: ${{ steps.dirs.outputs.package-dir }}
 
-  # (The rest of the file remains unchanged)
-  # JOB 2: Non-Arch aarch64 Packages
+# JOB 2: Non-Arch aarch64 Packages
   build_non_arch_aarch64:
     name: Build Non-Arch Packages (aarch64)
     runs-on: ubuntu-22.04
@@ -63,15 +62,28 @@ jobs:
           docker run --rm -v ${{ github.workspace }}:/ws:rw --platform linux/arm64 ubuntu:22.04 /bin/bash -c "
             set -e && export DEBIAN_FRONTEND=noninteractive
             apt-get update && apt-get install -y --no-install-recommends build-essential cmake pkg-config rpm qt6-base-dev libopencv-dev libavformat-dev libavcodec-dev libavutil-dev libswscale-dev libgl-dev wget libfuse2
+
+            # --- Build and CPack ---
             cmake -S /ws/QtProject_Linux -B /ws/build-aarch64 -DCMAKE_BUILD_TYPE=Release -DCPACK_OUTPUT_FILE_PREFIX=/ws/packages-aarch64
             cmake --build /ws/build-aarch64 && cpack --config /ws/build-aarch64/CPackConfig.cmake
-            cp /ws/QtProject_Linux/usr/share/applications/video-simili-duplicate-cleaner.desktop /ws/build-aarch64/
-            cp /ws/QtProject_Linux/usr/share/icons/hicolor/256x256/apps/video-simili-duplicate-cleaner.png /ws/build-aarch64/
-            wget -q -P /ws/build-aarch64 https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-aarch64.AppImage && chmod a+x /ws/build-aarch64/linuxdeployqt-aarch64.AppImage
-            /ws/build-aarch64/linuxdeployqt-aarch64.AppImage /ws/build-aarch64/video-simili-duplicate-cleaner -appimage -qmake=/usr/lib/aarch64-linux-gnu/qt6/bin/qmake
-            mv /ws/build-aarch64/Video_Simili_Duplicate_Cleaner-*.AppImage /ws/packages-aarch64/
-            /ws/build-aarch64/linuxdeployqt-aarch64.AppImage /ws/build-aarch64/video-simili-duplicate-cleaner -bundle-non-qt-libs
-            mv /ws/build-aarch64/Video_Simili_Duplicate_Cleaner-*-aarch64.tar.gz /ws/packages-aarch64/
+
+            # --- Change to build directory to simplify paths ---
+            cd /ws/build-aarch64
+
+            # --- Prepare for AppImage/Portable ---
+            cp /ws/QtProject_Linux/usr/share/applications/video-simili-duplicate-cleaner.desktop .
+            cp /ws/QtProject_Linux/usr/share/icons/hicolor/256x256/apps/video-simili-duplicate-cleaner.png .
+
+            # CORRECTED: Made wget verbose to show progress and errors
+            wget --show-progress --progress=bar:force:noscroll https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-aarch64.AppImage
+            chmod a+x ./linuxdeployqt-aarch64.AppImage
+
+            # --- Generate AppImage and Portable ---
+            ./linuxdeployqt-aarch64.AppImage ./video-simili-duplicate-cleaner -appimage -qmake=/usr/lib/aarch64-linux-gnu/qt6/bin/qmake
+            mv ./Video_Simili_Duplicate_Cleaner-*.AppImage /ws/packages-aarch64/
+
+            ./linuxdeployqt-aarch64.AppImage ./video-simili-duplicate-cleaner -bundle-non-qt-libs
+            mv ./Video_Simili_Duplicate_Cleaner-*-aarch64.tar.gz /ws/packages-aarch64/
           "
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
