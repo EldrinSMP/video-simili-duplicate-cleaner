@@ -51,15 +51,19 @@ jobs:
           name: packages-x86_64
           path: ${{ steps.dirs.outputs.package-dir }}
 
-  # JOB 2: AARCH64 BUILD
+ # JOB 2: AARCH64 BUILD
   build_aarch64:
     name: Build & Package for aarch64
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-qemu-action@v3
-      - uses: docker/login-action@v3
-        with: { registry: ghcr.io, username: ${{ github.repository_owner }}, password: ${{ secrets.GITHUB_TOKEN }} }
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Create Package Directory
         run: mkdir -p ${{ github.workspace }}/packages-aarch64
       - name: Build DEB, RPM, AppImage, Portable (in Ubuntu container)
@@ -88,4 +92,6 @@ jobs:
           "
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
-        with: { name: packages-aarch64, path: packages-aarch64 }
+        with:
+          name: packages-aarch64
+          path: packages-aarch64
