@@ -28,8 +28,9 @@ jobs:
 
       - name: Create Dockerfile for Build-Ready Image
         run: |
-          echo "--- Downloading Arch Linux ARM rootfs ---"
-          wget -q http://os.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz
+          echo "--- Downloading Arch Linux ARM rootfs (with progress) ---"
+          # CORRECTED WGET: Made verbose to show progress and errors.
+          wget --show-progress --progress=bar:force:noscroll http://os.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz
 
           echo "--- Creating Dockerfile ---"
           cat <<EOF > Dockerfile

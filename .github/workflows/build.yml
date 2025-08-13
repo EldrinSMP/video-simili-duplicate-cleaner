@@ -2,16 +2,22 @@
 name: Build & Package
 
 on:
+  # This workflow is currently set to run only when manually dispatched.
+  # Re-enable the push/pull_request triggers below when you are ready.
   workflow_dispatch:
+  # push:
+  #   branches: [ "master" ]
+  # pull_request:
+  #   branches: [ "master" ]
 
 jobs:
-  # JOB 1: NATIVE x86_64 BUILD
-  build_x86_64:
-    name: Build & Package for x86_64
+  # JOB 1: Non-Arch x86_64 Packages
+  build_non_arch_x86_64:
+    name: Build Non-Arch Packages (x86_64)
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      - name: Define Paths & Create Package Directory
+      - name: Define Paths & Create Directory
         id: dirs
         run: |
           echo "build-dir=${{ github.workspace }}/build-x86_64" >> "$GITHUB_OUTPUT"
@@ -37,36 +43,22 @@ jobs:
           mv Video_Simili_Duplicate_Cleaner-*.AppImage ${{ steps.dirs.outputs.package-dir }}/
           ./linuxdeployqt-continuous-x86_64.AppImage ${{ steps.dirs.outputs.build-dir }}/video-simili-duplicate-cleaner -bundle-non-qt-libs
           mv Video_Simili_Duplicate_Cleaner-*-x86_64.tar.gz ${{ steps.dirs.outputs.package-dir }}/
-      - name: Generate Arch Package (x86_64)
-        run: |
-          docker run --rm -v ${{ github.workspace }}:/ws:rw --platform linux/amd64 archlinux:latest /bin/bash -c "
-            set -e && pacman-key --init && pacman-key --populate && pacman -Syu --noconfirm --needed base-devel cmake git qt6-base opencv ffmpeg
-            cd /ws/QtProject_Linux && useradd builder -m && chown -R builder:builder /ws
-            sudo -u builder makepkg -sf --noconfirm
-            find . -maxdepth 1 -name '*.pkg.tar.zst' -exec mv {} /ws/packages-x86_64/ \;
-          "
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: packages-x86_64
           path: ${{ steps.dirs.outputs.package-dir }}
 
- # JOB 2: AARCH64 BUILD
-  build_aarch64:
-    name: Build & Package for aarch64
+  # JOB 2: Non-Arch aarch64 Packages
+  build_non_arch_aarch64:
+    name: Build Non-Arch Packages (aarch64)
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-qemu-action@v3
-      - name: Login to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Create Package Directory
         run: mkdir -p ${{ github.workspace }}/packages-aarch64
-      - name: Build DEB, RPM, AppImage, Portable (in Ubuntu container)
+      - name: Build in Ubuntu Container
         run: |
           docker run --rm -v ${{ github.workspace }}:/ws:rw --platform linux/arm64 ubuntu:22.04 /bin/bash -c "
             set -e && export DEBIAN_FRONTEND=noninteractive
@@ -81,17 +73,60 @@ jobs:
             /ws/build-aarch64/linuxdeployqt-aarch64.AppImage /ws/build-aarch64/video-simili-duplicate-cleaner -bundle-non-qt-libs
             mv /ws/build-aarch64/Video_Simili_Duplicate_Cleaner-*-aarch64.tar.gz /ws/packages-aarch64/
           "
-      - name: Build Arch Package (in pre-built Arch container)
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages-aarch64
+          path: packages-aarch64
+
+  # JOB 3: Arch Linux x86_64 Package
+  build_arch_x86_64:
+    name: Build Arch Package (x86_64)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create Package Directory
+        run: mkdir -p ${{ github.workspace }}/packages-arch-x86_64
+      - name: Build in Arch Container
+        run: |
+          docker run --rm -v ${{ github.workspace }}:/ws:rw --platform linux/amd64 archlinux:latest /bin/bash -c "
+            set -e && pacman-key --init && pacman-key --populate && pacman -Syu --noconfirm --needed base-devel cmake git qt6-base opencv ffmpeg
+            cd /ws/QtProject_Linux && useradd builder -m && chown -R builder:builder /ws
+            sudo -u builder makepkg -sf --noconfirm
+            find . -maxdepth 1 -name '*.pkg.tar.zst' -exec mv {} /ws/packages-arch-x86_64/ \;
+          "
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages-arch-x86_64
+          path: packages-arch-x86_64
+
+  # JOB 4: Arch Linux aarch64 Package
+  build_arch_aarch64:
+    name: Build Arch Package (aarch64)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create Package Directory
+        run: mkdir -p ${{ github.workspace }}/packages-arch-aarch64
+      - name: Build in Pre-built Arch Container
         run: |
           IMAGE_NAME="ghcr.io/${{ github.repository_owner }}/vsdc-archlinux-arm-builder:latest"
           docker pull $IMAGE_NAME
           docker run --rm -v ${{ github.workspace }}:/ws:rw --platform linux/arm64 $IMAGE_NAME /bin/bash -c "
             set -e && cd /ws/QtProject_Linux && useradd builder -m && chown -R builder:builder /ws
             sudo -u builder makepkg -sf --noconfirm
-            find . -maxdepth 1 -name '*.pkg.tar.zst' -exec mv {} /ws/packages-aarch64/ \;
+            find . -maxdepth 1 -name '*.pkg.tar.zst' -exec mv {} /ws/packages-arch-aarch64/ \;
           "
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: packages-aarch64
-          path: packages-aarch64
+          name: packages-arch-aarch64
+          path: packages-arch-aarch64
