@@ -96,7 +96,7 @@ jobs:
           name: packages-aarch64
           path: release-files/*.{deb,rpm}
 
-# JOB 3: CONTAINERIZED ARCH LINUX BUILDS (Faster Approach)
+# JOB 3: CONTAINERIZED ARCH LINUX BUILDS (Using Pre-Built Image)
   build_arch:
     name: Build for Arch Linux (${{ matrix.arch }})
     runs-on: ubuntu-22.04
@@ -111,18 +111,27 @@ jobs:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
+      - name: Log in to GitHub Container Registry
+        # We need to log in to pull the private-by-default image
+        if: matrix.arch == 'aarch64'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build Arch Package in Container
         run: |
           if [ "${{ matrix.arch }}" = "aarch64" ]; then
             PLATFORM="linux/arm64"
-            # Use a more reliable, multi-platform community image
-            IMAGE="agners/archlinux-arm"
+            # Use our trusted, pre-built image from the registry
+            IMAGE="ghcr.io/${{ github.repository }}/archlinux-arm:latest"
           else
             PLATFORM="linux/amd64"
             IMAGE="archlinux:latest"
           fi
 
-          # The rest of the build command remains the same
+          # The rest of the command is now fast and reliable
           docker run --rm -v ${{ github.workspace }}:/ws:rw --platform $PLATFORM \
             $IMAGE \
             /bin/bash -c " \
