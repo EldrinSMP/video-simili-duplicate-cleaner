@@ -96,7 +96,7 @@ jobs:
           name: packages-aarch64
           path: release-files/*.{deb,rpm}
 
-# JOB 3: CONTAINERIZED ARCH LINUX BUILDS (New Robust Approach)
+# JOB 3: CONTAINERIZED ARCH LINUX BUILDS (Simplified and Corrected)
   build_arch:
     name: Build for Arch Linux (${{ matrix.arch }})
     runs-on: ubuntu-22.04
@@ -110,34 +110,19 @@ jobs:
         uses: actions/checkout@v4
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
 
       - name: Build Arch Package in Container
         run: |
-          if [ "${{ matrix.arch }}" = "aarch64" ]; then
-            PLATFORM="linux/arm64"
-            # Define the source for our build environment
-            IMAGE_SOURCE_URL="http://os.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz"
-            # Create a Dockerfile to build our own image
-            echo "FROM scratch" > Dockerfile
-            echo "ADD $IMAGE_SOURCE_URL /" >> Dockerfile
-            echo "CMD [\"/bin/bash\"]" >> Dockerfile
-            # Build the image
-            docker build -t archlinux-aarch64-custom .
-            IMAGE="archlinux-aarch64-custom"
-          else
-            PLATFORM="linux/amd64"
-            IMAGE="archlinux:latest"
-          fi
+          # Set the platform based on the matrix architecture
+          PLATFORM="linux/${{ matrix.arch == 'x86_64' && 'amd64' || 'arm64' }}"
 
-          # Run the build process inside our container
+          # Run the build in the official, multi-platform Arch Linux container
           docker run --rm -v ${{ github.workspace }}:/ws:rw --platform $PLATFORM \
-            $IMAGE \
+            archlinux:latest \
             /bin/bash -c " \
               set -e && \
               echo '--- Installing Dependencies ---' && \
-              pacman-key --init && pacman-key --populate archlinux && \
+              pacman-key --init && pacman-key --populate && \
               pacman -Syu --noconfirm base-devel cmake git qt6-base opencv ffmpeg && \
               \
               echo '--- Building Package ---' && \
