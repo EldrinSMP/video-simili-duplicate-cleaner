@@ -124,8 +124,9 @@ jobs:
         run: |
           if [ "${{ matrix.arch }}" = "aarch64" ]; then
             PLATFORM="linux/arm64"
-            # Use our trusted, pre-built image from the registry
-            IMAGE="ghcr.io/${{ github.repository }}/archlinux-arm:latest"
+            # Convert repository name to lowercase to pull the correct image
+            IMAGE_NAME=$(echo "ghcr.io/${{ github.repository }}/archlinux-arm:latest" | tr '[:upper:]' '[:lower:]')
+            IMAGE=$IMAGE_NAME
           else
             PLATFORM="linux/amd64"
             IMAGE="archlinux:latest"

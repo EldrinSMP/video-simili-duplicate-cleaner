@@ -28,16 +28,9 @@ jobs:
 
       - name: Build and Push Image
         run: |
-          # 1. Download the official Arch Linux ARM tarball.
-          echo "--- Downloading Arch Linux ARM rootfs ---"
-          wget -c http://os.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz
+          # Convert repository name to lowercase for the tag
+          IMAGE_NAME=$(echo "ghcr.io/${{ github.repository }}/archlinux-arm:latest" | tr '[:upper:]' '[:lower:]')
 
-          # 2. Create a Dockerfile to build our image from the local tarball.
-          echo "FROM scratch" > Dockerfile
-          echo "ADD ArchLinuxARM-aarch64-latest.tar.gz /" >> Dockerfile
-          echo "CMD [\"/bin/bash\"]" >> Dockerfile
-
-          # 3. Build the image and push it to the registry.
-          # The image will be named after your repository.
-          docker build --platform linux/arm64 -t ghcr.io/${{ github.repository }}/archlinux-arm:latest .
-          docker push ghcr.io/${{ github.repository }}/archlinux-arm:latest
+          # Build and push the image using the lowercase name
+          docker build --platform linux/arm64 -t $IMAGE_NAME .
+          docker push $IMAGE_NAME
