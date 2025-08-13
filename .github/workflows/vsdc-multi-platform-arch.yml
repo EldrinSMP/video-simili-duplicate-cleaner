@@ -96,7 +96,7 @@ jobs:
           name: packages-aarch64
           path: release-files/*.{deb,rpm}
 
-# JOB 3: CONTAINERIZED ARCH LINUX BUILDS (Final Robust Approach)
+# JOB 3: CONTAINERIZED ARCH LINUX BUILDS (Faster Approach)
   build_arch:
     name: Build for Arch Linux (${{ matrix.arch }})
     runs-on: ubuntu-22.04
@@ -110,28 +110,19 @@ jobs:
         uses: actions/checkout@v4
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
 
       - name: Build Arch Package in Container
         run: |
           if [ "${{ matrix.arch }}" = "aarch64" ]; then
             PLATFORM="linux/arm64"
-            echo "--- Downloading Arch Linux ARM rootfs ---"
-            wget -c http://os.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz
-            echo "FROM scratch" > Dockerfile
-            echo "ADD ArchLinuxARM-aarch64-latest.tar.gz /" >> Dockerfile
-            echo "CMD [\"/bin/bash\"]" >> Dockerfile
-            echo "--- Building custom Docker image ---"
-            # THE FIX: Add the --load flag to make the image available locally
-            docker build --platform $PLATFORM --load -t archlinux-aarch64-custom .
-            IMAGE="archlinux-aarch64-custom"
+            # Use a more reliable, multi-platform community image
+            IMAGE="agners/archlinux-arm"
           else
             PLATFORM="linux/amd64"
             IMAGE="archlinux:latest"
           fi
 
-          # Run the build process inside our container.
+          # The rest of the build command remains the same
           docker run --rm -v ${{ github.workspace }}:/ws:rw --platform $PLATFORM \
             $IMAGE \
             /bin/bash -c " \

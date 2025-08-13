@@ -5,7 +5,7 @@ _pkgname=video-simili-duplicate-cleaner
 pkgver=r544.g4a0077c
 pkgrel=1
 pkgdesc="A tool to find and remove duplicate or similar video files."
-arch=('x86_64')
+arch=('x86_64' 'aarch64')
 url="https://github.com/eldrinsmp/video-simili-duplicate-cleaner"
 license=('GPL3')
 
