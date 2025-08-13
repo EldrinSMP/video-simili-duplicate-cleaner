@@ -2,12 +2,6 @@
 name: Build & Package
 
 on:
-# Run on pushes and pull requests to the main branch
-#  push:
-#   branches: [ "master" ]
-#  pull_request:
-#    branches: [ "master" ]
-# Allow manual runs
   workflow_dispatch:
 
 jobs:
