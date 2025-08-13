@@ -113,7 +113,7 @@ jobs:
           name: packages-arch-x86_64
           path: packages-arch-x86_64
 
-  # JOB 4: Arch Linux aarch64 Package
+# JOB 4: Arch Linux aarch64 Package
   build_arch_aarch64:
     name: Build Arch Package (aarch64)
     runs-on: ubuntu-22.04
@@ -131,12 +131,11 @@ jobs:
       - name: Build in Pre-built Arch Container
         run: |
           IMAGE_NAME=$(echo "ghcr.io/${{ github.repository_owner }}/vsdc-archlinux-arm-builder:latest" | tr '[:upper:]' '[:lower:]')
-          # DEFINITIVE FIX: Add --platform linux/arm64 to the pull command
           docker pull --platform linux/arm64 $IMAGE_NAME
           docker run --rm -v ${{ github.workspace }}:/ws:rw --platform linux/arm64 $IMAGE_NAME /bin/bash -c "
             set -e && cd /ws/QtProject_Linux && useradd builder -m && chown -R builder:builder /ws
-            sudo -u builder makepkg -sf --noconfirm
-            find . -maxdepth 1 -name '*.pkg.tar.zst' -exec mv {} /ws/packages-arch-aarch64/ \;
+            # CORRECTED: Use --pkgdest to place the built package directly into the target directory.
+            sudo -u builder makepkg -sf --noconfirm --pkgdest /ws/packages-arch-aarch64
           "
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
