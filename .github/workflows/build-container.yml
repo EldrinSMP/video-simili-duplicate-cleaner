@@ -5,7 +5,8 @@ name: Build and Push Arch ARM Container
 on:
   workflow_dispatch:
 
-jobs build-and-push:
+jobs:
+  build-and-push:
     name: Build and Push Arch ARM Image
     runs-on: ubuntu-latest
     permissions:
