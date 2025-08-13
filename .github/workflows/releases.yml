@@ -1,0 +1,35 @@
+# .github/workflows/release.yml
+name: Create GitHub Release
+
+on:
+  # This workflow runs ONLY when you push a tag like v1.2.3
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          # The name of the artifacts to download.
+          # Since you have multiple artifacts, you can leave this empty
+          # to download all of them produced by the workflow run.
+          # We will need to find the correct workflow run.
+          # This action automatically finds artifacts from the same commit SHA.
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          # This will use the tag that triggered the workflow as the release name
+          tag_name: ${{ github.ref }}
+          # This will mark the release as a pre-release
+          prerelease: false
+          # The files to upload to the release
+          files: artifacts/*/*
