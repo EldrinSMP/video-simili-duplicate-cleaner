@@ -2,6 +2,7 @@
 name: Build & Package
 
 on:
+  # This workflow is currently set to run only when manually dispatched.
   workflow_dispatch:
   # push:
   #   branches: [ "master" ]
@@ -20,7 +21,6 @@ jobs:
         run: |
           echo "build-dir=${{ github.workspace }}/build-x86_64" >> "$GITHUB_OUTPUT"
           echo "package-dir=${{ github.workspace }}/packages-x86_64" >> "$GITHUB_OUTPUT"
-          # CORRECTED: The mkdir command was missing its argument.
           mkdir -p ${{ github.workspace }}/packages-x86_64
       - name: Install Dependencies
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential cmake pkg-config rpm libfuse2 libgl-dev qt6-base-dev libopencv-dev libavformat-dev libavcodec-dev libavutil-dev libswscale-dev
@@ -38,8 +38,13 @@ jobs:
         run: |
           wget -q https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage
           chmod a+x linuxdeployqt-continuous-x86_64.AppImage
+
+          # Explicitly add the Qt6 bin directory to the PATH to ensure linuxdeployqt finds it.
+          export PATH="/usr/lib/qt6/bin:$PATH"
+
           ./linuxdeployqt-continuous-x86_64.AppImage ${{ steps.dirs.outputs.build-dir }}/video-simili-duplicate-cleaner -appimage -qmake=/usr/lib/qt6/bin/qmake
           mv Video_Simili_Duplicate_Cleaner-*.AppImage ${{ steps.dirs.outputs.package-dir }}/
+
           ./linuxdeployqt-continuous-x86_64.AppImage ${{ steps.dirs.outputs.build-dir }}/video-simili-duplicate-cleaner -bundle-non-qt-libs
           mv Video_Simili_Duplicate_Cleaner-*-x86_64.tar.gz ${{ steps.dirs.outputs.package-dir }}/
       - name: Upload Artifacts
@@ -48,7 +53,7 @@ jobs:
           name: packages-x86_64
           path: ${{ steps.dirs.outputs.package-dir }}
 
-# JOB 2: Non-Arch aarch64 Packages
+  # JOB 2: Non-Arch aarch64 Packages
   build_non_arch_aarch64:
     name: Build Non-Arch Packages (aarch64)
     runs-on: ubuntu-22.04
@@ -63,22 +68,17 @@ jobs:
             set -e && export DEBIAN_FRONTEND=noninteractive
             apt-get update && apt-get install -y --no-install-recommends build-essential cmake pkg-config rpm qt6-base-dev libopencv-dev libavformat-dev libavcodec-dev libavutil-dev libswscale-dev libgl-dev wget libfuse2
 
-            # --- Build and CPack ---
             cmake -S /ws/QtProject_Linux -B /ws/build-aarch64 -DCMAKE_BUILD_TYPE=Release -DCPACK_OUTPUT_FILE_PREFIX=/ws/packages-aarch64
             cmake --build /ws/build-aarch64 && cpack --config /ws/build-aarch64/CPackConfig.cmake
 
-            # --- Change to build directory to simplify paths ---
             cd /ws/build-aarch64
 
-            # --- Prepare for AppImage/Portable ---
             cp /ws/QtProject_Linux/usr/share/applications/video-simili-duplicate-cleaner.desktop .
             cp /ws/QtProject_Linux/usr/share/icons/hicolor/256x256/apps/video-simili-duplicate-cleaner.png .
 
-            # CORRECTED: Made wget verbose to show progress and errors
             wget --show-progress --progress=bar:force:noscroll https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-aarch64.AppImage
             chmod a+x ./linuxdeployqt-aarch64.AppImage
 
-            # --- Generate AppImage and Portable ---
             ./linuxdeployqt-aarch64.AppImage ./video-simili-duplicate-cleaner -appimage -qmake=/usr/lib/aarch64-linux-gnu/qt6/bin/qmake
             mv ./Video_Simili_Duplicate_Cleaner-*.AppImage /ws/packages-aarch64/
 
