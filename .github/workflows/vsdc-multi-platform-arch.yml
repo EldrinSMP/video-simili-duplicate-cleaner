@@ -96,7 +96,7 @@ jobs:
           name: packages-aarch64
           path: release-files/*.{deb,rpm}
 
-# JOB 3: CONTAINERIZED ARCH LINUX BUILDS (Simplified and Corrected)
+# JOB 3: CONTAINERIZED ARCH LINUX BUILDS (Final Robust Approach)
   build_arch:
     name: Build for Arch Linux (${{ matrix.arch }})
     runs-on: ubuntu-22.04
@@ -110,15 +110,32 @@ jobs:
         uses: actions/checkout@v4
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Build Arch Package in Container
         run: |
-          # Set the platform based on the matrix architecture
-          PLATFORM="linux/${{ matrix.arch == 'x86_64' && 'amd64' || 'arm64' }}"
+          if [ "${{ matrix.arch }}" = "aarch64" ]; then
+            PLATFORM="linux/arm64"
+            # 1. Download the official Arch Linux ARM tarball first.
+            echo "--- Downloading Arch Linux ARM rootfs ---"
+            wget -c http://os.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz
+            # 2. Create a Dockerfile to build our image from the LOCAL tarball.
+            echo "FROM scratch" > Dockerfile
+            echo "ADD ArchLinuxARM-aarch64-latest.tar.gz /" >> Dockerfile
+            echo "CMD [\"/bin/bash\"]" >> Dockerfile
+            # 3. Build the custom image.
+            echo "--- Building custom Docker image ---"
+            docker build -t archlinux-aarch64-custom .
+            IMAGE="archlinux-aarch64-custom"
+          else
+            PLATFORM="linux/amd64"
+            IMAGE="archlinux:latest"
+          fi
 
-          # Run the build in the official, multi-platform Arch Linux container
+          # 4. Run the build process inside our container.
           docker run --rm -v ${{ github.workspace }}:/ws:rw --platform $PLATFORM \
-            archlinux:latest \
+            $IMAGE \
             /bin/bash -c " \
               set -e && \
               echo '--- Installing Dependencies ---' && \
