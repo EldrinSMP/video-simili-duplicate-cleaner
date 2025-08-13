@@ -77,11 +77,11 @@ jobs:
             cp /ws/QtProject_Linux/usr/share/applications/video-simili-duplicate-cleaner.desktop .
             cp /ws/QtProject_Linux/usr/share/icons/hicolor/256x256/apps/video-simili-duplicate-cleaner.png .
 
-            # CORRECTED: Updated URL to a valid, versioned release of linuxdeployqt for aarch64
-            wget --show-progress --progress=bar:force:noscroll https://github.com/probonopd/linuxdeployqt/releases/download/7/linuxdeployqt-aarch64.AppImage
-            chmod a+x ./linuxdeployqt-aarch64.AppImage
+            # CORRECTED: Using the continuous build URL, which matches the working x86_64 URL pattern.
+            wget --show-progress --progress=bar:force:noscroll https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-aarch64.AppImage
+            chmod a+x ./linuxdeployqt-continuous-aarch64.AppImage
 
-            ./linuxdeployqt-aarch64.AppImage ./video-simili-duplicate-cleaner -appimage -qmake=/usr/lib/aarch64-linux-gnu/qt6/bin/qmake
+            ./linuxdeployqt-continuous-aarch64.AppImage ./video-simili-duplicate-cleaner -appimage -qmake=/usr/lib/aarch64-linux-gnu/qt6/bin/qmake
             mv ./Video_Simili_Duplicate_Cleaner-*.AppImage /ws/packages-aarch64/
 
             APP_VERSION=\$(git rev-parse --short HEAD)
@@ -115,7 +115,7 @@ jobs:
           name: packages-arch-x86_64
           path: packages-arch-x86_64
 
-  # JOB 4: Arch Linux aarch64 Package
+# JOB 4: Arch Linux aarch64 Package
   build_arch_aarch64:
     name: Build Arch Package (aarch64)
     runs-on: ubuntu-22.04
@@ -133,7 +133,10 @@ jobs:
       - name: Build in Pre-built Arch Container
         run: |
           IMAGE_NAME=$(echo "ghcr.io/${{ github.repository_owner }}/vsdc-archlinux-arm-builder:latest" | tr '[:upper:]' '[:lower:]')
-          docker pull $IMAGE_NAME
+
+          # CORRECTED: Added --platform linux/arm64 to the pull command.
+          docker pull --platform linux/arm64 $IMAGE_NAME
+
           docker run --rm -v ${{ github.workspace }}:/ws:rw --platform linux/arm64 $IMAGE_NAME /bin/bash -c "
             set -e && cd /ws/QtProject_Linux && useradd builder -m && chown -R builder:builder /ws
             sudo -u builder makepkg -sf --noconfirm
