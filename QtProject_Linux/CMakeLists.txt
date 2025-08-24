@@ -64,4 +64,3 @@ set(CPACK_RPM_PACKAGE_RELEASE 1)
 set(CPACK_GENERATOR "DEB;RPM")
 
 include(CPack)
-
