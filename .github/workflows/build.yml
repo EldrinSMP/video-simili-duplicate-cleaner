@@ -2,12 +2,12 @@
 name: Build & Package
 
 on:
-  # This workflow is currently set to run only when manually dispatched.
   workflow_dispatch:
-  # push:
-  #   branches: [ "master" ]
-  # pull_request:
-  #   branches: [ "master" ]
+
+# The single source of truth for version and name
+env:
+  CI_PACKAGE_VERSION: "1.13.0"
+  CI_PACKAGE_NAME: "video-simili-duplicate-cleaner"
 
 jobs:
   # JOB 1: Non-Arch x86_64 Packages
@@ -20,29 +20,25 @@ jobs:
         id: dirs
         run: |
           echo "build-dir=${{ github.workspace }}/build-x86_64" >> "$GITHUB_OUTPUT"
-          echo "package-dir=${{ github.workspace }}/packages-x86_64" >> "$GITHUB_OUTPUT"
-          mkdir -p ${{ github.workspace }}/packages-x86_64
+          echo "package-dir=${{ github.workspace }}/packages" >> "$GITHUB_OUTPUT"
+          mkdir -p ${{ github.workspace }}/packages
       - name: Install Dependencies
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential cmake pkg-config rpm libfuse2 libgl-dev qt6-base-dev libopencv-dev libavformat-dev libavcodec-dev libavutil-dev libswscale-dev
       - name: Configure and Build
+        run: cmake -S QtProject_Linux -B ${{ steps.dirs.outputs.build-dir }} -DCMAKE_BUILD_TYPE=Release
+      - name: Generate and Rename DEB/RPM
         run: |
-          cmake -S QtProject_Linux -B ${{ steps.dirs.outputs.build-dir }} -DCMAKE_BUILD_TYPE=Release -DCPACK_OUTPUT_FILE_PREFIX=${{ steps.dirs.outputs.package-dir }}
-          cmake --build ${{ steps.dirs.outputs.build-dir }}
-      - name: Generate DEB and RPM
-        run: cpack --config ${{ steps.dirs.outputs.build-dir }}/CPackConfig.cmake
-      - name: Copy Assets for AppImage/Portable
-        run: |
-          cp QtProject_Linux/usr/share/applications/video-simili-duplicate-cleaner.desktop ${{ steps.dirs.outputs.build-dir }}/
-          cp QtProject_Linux/usr/share/icons/hicolor/256x256/apps/video-simili-duplicate-cleaner.png ${{ steps.dirs.outputs.build-dir }}/
+          cpack --config ${{ steps.dirs.outputs.build-dir }}/CPackConfig.cmake
+          mv *.deb ${{ steps.dirs.outputs.package-dir }}/${{ env.CI_PACKAGE_NAME }}-${{ env.CI_PACKAGE_VERSION }}-x86_64.deb
+          mv *.rpm ${{ steps.dirs.outputs.package-dir }}/${{ env.CI_PACKAGE_NAME }}-${{ env.CI_PACKAGE_VERSION }}-x86_64.rpm
       - name: Generate AppImage & Portable Archive
         run: |
           wget -q https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage
           chmod a+x linuxdeployqt-continuous-x86_64.AppImage
           export PATH="/usr/lib/qt6/bin:$PATH"
-          ./linuxdeployqt-continuous-x86_64.AppImage ${{ steps.dirs.outputs.build-dir }}/video-simili-duplicate-cleaner -appimage -qmake=/usr/lib/qt6/bin/qmake
-          mv Video_Simili_Duplicate_Cleaner-*.AppImage ${{ steps.dirs.outputs.package-dir }}/
-          APP_VERSION=$(git rev-parse --short HEAD)
-          tar -czvf ${{ steps.dirs.outputs.package-dir }}/Video_Simili_Duplicate_Cleaner-${APP_VERSION}-x86_64-portable.tar.gz -C ${{ steps.dirs.outputs.build-dir }} .
+          ./linuxdeployqt-continuous-x86_64.AppImage ${{ steps.dirs.outputs.build-dir }}/${{ env.CI_PACKAGE_NAME }} -appimage
+          mv ${{ env.CI_PACKAGE_NAME }}-*.AppImage ${{ steps.dirs.outputs.package-dir }}/${{ env.CI_PACKAGE_NAME }}-${{ env.CI_PACKAGE_VERSION }}-x86_64.AppImage
+          tar -czvf ${{ steps.dirs.outputs.package-dir }}/${{ env.CI_PACKAGE_NAME }}-${{ env.CI_PACKAGE_VERSION }}-x86_64-portable.tar.gz -C ${{ steps.dirs.outputs.build-dir }} .
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -57,91 +53,89 @@ jobs:
       - uses: actions/checkout@v4
       - uses: docker/setup-qemu-action@v3
       - name: Create Package Directory
-        run: mkdir -p ${{ github.workspace }}/packages-aarch64
+        run: mkdir -p ${{ github.workspace }}/packages
       - name: Build in Ubuntu Container
         run: |
-          docker run --rm -v ${{ github.workspace }}:/ws:rw --platform linux/arm64 ubuntu:22.04 /bin/bash -c "
+          docker run --rm -v ${{ github.workspace }}:/ws:rw --platform linux/arm64 \
+            -e CI_PACKAGE_VERSION=${{ env.CI_PACKAGE_VERSION }} \
+            ubuntu:22.04 /bin/bash -c "
             set -e && export DEBIAN_FRONTEND=noninteractive
             apt-get update && apt-get install -y --no-install-recommends ca-certificates build-essential cmake pkg-config rpm qt6-base-dev libopencv-dev libavformat-dev libavcodec-dev libavutil-dev libswscale-dev libgl-dev wget libfuse2 git
 
-            cmake -S /ws/QtProject_Linux -B /ws/build-aarch64 -DCMAKE_BUILD_TYPE=Release -DCPACK_OUTPUT_FILE_PREFIX=/ws/packages-aarch64
-            cmake --build /ws/build-aarch64 && cpack --config /ws/build-aarch64/CPackConfig.cmake
+            cmake -S /ws/QtProject_Linux -B /ws/build-aarch64 -DCMAKE_BUILD_TYPE=Release -DCPACK_PACKAGE_ARCHITECTURE=aarch64
+            cpack --config /ws/build-aarch64/CPackConfig.cmake
+            mv /ws/*.deb /ws/packages/${{ env.CI_PACKAGE_NAME }}-${{ env.CI_PACKAGE_VERSION }}-aarch64.deb
+            mv /ws/*.rpm /ws/packages/${{ env.CI_PACKAGE_NAME }}-${{ env.CI_PACKAGE_VERSION }}-aarch64.rpm
 
             cd /ws/build-aarch64
-
-            cp /ws/QtProject_Linux/usr/share/applications/video-simili-duplicate-cleaner.desktop .
-            cp /ws/QtProject_Linux/usr/share/icons/hicolor/256x256/apps/video-simili-duplicate-cleaner.png .
-
-            # THE DEFINITIVE FIX: Download, extract, and then run the AppRun script
-            # This bypasses the "Exec format error".
             wget --show-progress --progress=bar:force:noscroll https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-aarch64.AppImage
             chmod a+x ./linuxdeployqt-continuous-aarch64.AppImage
             ./linuxdeployqt-continuous-aarch64.AppImage --appimage-extract
+            export PATH=\"/usr/lib/aarch64-linux-gnu/qt6/bin:\$PATH\"
 
-            # Set the PATH so the extracted tool can find Qt
-            export PATH="/usr/lib/aarch64-linux-gnu/qt6/bin:\$PATH"
-
-            # --- Generate AppImage and Portable using the extracted AppRun binary ---
-            ./squashfs-root/AppRun ./video-simili-duplicate-cleaner -appimage -qmake=/usr/lib/aarch64-linux-gnu/qt6/bin/qmake
-            mv ./Video_Simili_Duplicate_Cleaner-*.AppImage /ws/packages-aarch64/
-
-            APP_VERSION=\$(git rev-parse --short HEAD)
-            tar -czvf /ws/packages-aarch64/Video_Simili_Duplicate_Cleaner-\${APP_VERSION}-aarch64-portable.tar.gz -C . .
+            ./squashfs-root/AppRun ./${{ env.CI_PACKAGE_NAME }} -appimage
+            mv ${{ env.CI_PACKAGE_NAME }}-*.AppImage /ws/packages/${{ env.CI_PACKAGE_NAME }}-${{ env.CI_PACKAGE_VERSION }}-aarch64.AppImage
+            tar -czvf /ws/packages/${{ env.CI_PACKAGE_NAME }}-${{ env.CI_PACKAGE_VERSION }}-aarch64-portable.tar.gz -C . .
           "
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: packages-aarch64
-          path: packages-aarch64
+          path: packages
 
-  # JOB 3: Arch Linux x86_64 Package
-  build_arch_x86_64:
-    name: Build Arch Package (x86_64)
+  # JOB 3: Arch Linux Packages (Matrix Build)
+  build_arch:
+    name: Build Arch Package (${{ matrix.arch }})
     runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        arch: [x86_64, aarch64]
     steps:
       - uses: actions/checkout@v4
-      - name: Create Package Directory
-        run: mkdir -p ${{ github.workspace }}/packages-arch-x86_64
-      - name: Build in Arch Container
-        run: |
-          docker run --rm -v ${{ github.workspace }}:/ws:rw --platform linux/amd64 archlinux:latest /bin/bash -c "
-            set -e && pacman-key --init && pacman-key --populate && pacman -Syu --noconfirm --needed base-devel cmake git qt6-base opencv ffmpeg
-            cd /ws/QtProject_Linux && useradd builder -m && chown -R builder:builder /ws
-            sudo -u builder makepkg -sf --noconfirm
-            find . -name '*.pkg.tar.*' -exec mv {} /ws/packages-arch-x86_64/ \;
-          "
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: packages-arch-x86_64
-          path: packages-arch-x86_64
-
-  # JOB 4: Arch Linux aarch64 Package
-  build_arch_aarch64:
-    name: Build Arch Package (aarch64)
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-qemu-action@v3
-      - name: Login to GHCR
+      - if: matrix.arch == 'aarch64'
+        name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - if: matrix.arch == 'aarch64'
+        name: Login to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Create Package Directory
-        run: mkdir -p ${{ github.workspace }}/packages-arch-aarch64
-      - name: Build in Pre-built Arch Container
+        run: mkdir -p ${{ github.workspace }}/packages
+      - name: Determine Docker Image
+        id: docker_image
         run: |
-          IMAGE_NAME=$(echo "ghcr.io/${{ github.repository_owner }}/vsdc-archlinux-arm-builder:latest" | tr '[:upper:]' '[:lower:]')
-          docker pull --platform linux/arm64 $IMAGE_NAME
-          docker run --rm -v ${{ github.workspace }}:/ws:rw --platform linux/arm64 $IMAGE_NAME /bin/bash -c "
-            set -e && cd /ws/QtProject_Linux && useradd builder -m && chown -R builder:builder /ws
-            sudo -u builder makepkg -sf --noconfirm
-            find . -name '*.pkg.tar.*' -exec mv {} /ws/packages-arch-aarch64/ \;
-          "
+          if [ "${{ matrix.arch }}" = "aarch64" ]; then
+            echo "IMAGE_NAME=$(echo "ghcr.io/${{ github.repository_owner }}/vsdc-archlinux-arm-builder:latest" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+          else
+            echo "IMAGE_NAME=archlinux:latest" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Build in Container
+        run: |
+          docker pull --platform linux/${{ matrix.arch == 'x86_64' && 'amd64' || 'arm64' }} ${{ steps.docker_image.outputs.IMAGE_NAME }}
+          docker run --rm -v ${{ github.workspace }}:/ws:rw \
+            --platform linux/${{ matrix.arch == 'x86_64' && 'amd64' || 'arm64' }} \
+            -e CI_PACKAGE_VERSION=${{ env.CI_PACKAGE_VERSION }} \
+            -e CI_PACKAGE_NAME=${{ env.CI_PACKAGE_NAME }} \
+            -e CI_PACKAGE_ARCH=${{ matrix.arch }} \
+            ${{ steps.docker_image.outputs.IMAGE_NAME }} /bin/bash -c "
+              set -e
+              if [ \"${{ matrix.arch }}\" = \"x86_64\" ]; then
+                pacman-key --init && pacman-key --populate && pacman -Syu --noconfirm --needed base-devel cmake git qt6-base opencv ffmpeg
+              fi
+              cd /ws/QtProject_Linux
+              useradd builder -m && chown -R builder:builder /ws
+              sudo -u builder PKGEXT='.pkg.tar.zst' makepkg -sf --noconfirm
+              find . -maxdepth 1 -name \"*.pkg.tar.zst\" -exec mv {} /ws/packages/ \;
+            "
+      - name: Rename Arch Package
+        run: |
+          cd ${{ github.workspace }}/packages
+          mv *.pkg.tar.zst ${{ env.CI_PACKAGE_NAME }}-${{ env.CI_PACKAGE_VERSION }}-${{ matrix.arch }}-arch.pkg.tar.zst
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: packages-arch-aarch64
-          path: packages-arch-aarch64
+          name: packages-arch-${{ matrix.arch }}
+          path: ${{ github.workspace }}/packages
