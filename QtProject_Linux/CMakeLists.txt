@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 3.16)
 if(DEFINED ENV{CI_PACKAGE_VERSION})
     set(PACKAGE_VERSION "$ENV{CI_PACKAGE_VERSION}")
 else()
-    set(PACKAGE_VERSION "1.13.0L-local")
+    set(PACKAGE_VERSION "1.13.0") # Corrected fallback version
 endif()
 
 # Standardize the project name
@@ -39,7 +39,7 @@ add_executable(${PROJECT_NAME}
     app/videoprocessingpool.cpp
     app/db.h
     app/db.cpp
-    app/ssim.h
+    app/ssim.h # <-- This was the missing file
     app/ssim.cpp
     app/files.qrc
 )
@@ -64,3 +64,4 @@ set(CPACK_RPM_PACKAGE_RELEASE 1)
 set(CPACK_GENERATOR "DEB;RPM")
 
 include(CPack)
+
