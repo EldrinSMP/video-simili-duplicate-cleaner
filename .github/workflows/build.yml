@@ -58,4 +58,84 @@ jobs:
         run: |
           docker run --rm -v ${{ github.workspace }}:/ws:rw --platform linux/arm64 \
             -e CI_PACKAGE_VERSION=${{ env.CI_PACKAGE_VERSION }} \
-            ubuntu:22.04
+            ubuntu:22.04 /bin/bash -c "
+            set -e && export DEBIAN_FRONTEND=noninteractive
+            apt-get update && apt-get install -y --no-install-recommends ca-certificates build-essential cmake pkg-config rpm qt6-base-dev libopencv-dev libavformat-dev libavcodec-dev libavutil-dev libswscale-dev libgl-dev wget libfuse2 git
+
+            cmake -S /ws/QtProject_Linux -B /ws/build-aarch64 -DCMAKE_BUILD_TYPE=Release -DCPACK_PACKAGE_ARCHITECTURE=aarch64
+            cpack --config /ws/build-aarch64/CPackConfig.cmake
+            mv /ws/*.deb /ws/packages/${{ env.CI_PACKAGE_NAME }}-${{ env.CI_PACKAGE_VERSION }}-aarch64.deb
+            mv /ws/*.rpm /ws/packages/${{ env.CI_PACKAGE_NAME }}-${{ env.CI_PACKAGE_VERSION }}-aarch64.rpm
+
+            cd /ws/build-aarch64
+            wget --show-progress --progress=bar:force:noscroll https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-aarch64.AppImage
+            chmod a+x ./linuxdeployqt-continuous-aarch64.AppImage
+            ./linuxdeployqt-continuous-aarch64.AppImage --appimage-extract
+            export PATH=\"/usr/lib/aarch64-linux-gnu/qt6/bin:\$PATH\"
+
+            ./squashfs-root/AppRun ./${{ env.CI_PACKAGE_NAME }} -appimage
+            mv ${{ env.CI_PACKAGE_NAME }}-*.AppImage /ws/packages/${{ env.CI_PACKAGE_NAME }}-${{ env.CI_PACKAGE_VERSION }}-aarch64.AppImage
+            tar -czvf /ws/packages/${{ env.CI_PACKAGE_NAME }}-${{ env.CI_PACKAGE_VERSION }}-aarch64-portable.tar.gz -C . .
+          "
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages-aarch64
+          path: packages
+
+  # JOB 3: Arch Linux Packages (Matrix Build)
+  build_arch:
+    name: Build Arch Package (${{ matrix.arch }})
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        arch: [x86_64, aarch64]
+    steps:
+      - uses: actions/checkout@v4
+      - if: matrix.arch == 'aarch64'
+        name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - if: matrix.arch == 'aarch64'
+        name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create Package Directory
+        run: mkdir -p ${{ github.workspace }}/packages
+      - name: Determine Docker Image
+        id: docker_image
+        run: |
+          if [ "${{ matrix.arch }}" = "aarch64" ]; then
+            echo "IMAGE_NAME=$(echo "ghcr.io/${{ github.repository_owner }}/vsdc-archlinux-arm-builder:latest" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+          else
+            echo "IMAGE_NAME=archlinux:latest" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Build in Container
+        run: |
+          docker pull --platform linux/${{ matrix.arch == 'x86_64' && 'amd64' || 'arm64' }} ${{ steps.docker_image.outputs.IMAGE_NAME }}
+          docker run --rm -v ${{ github.workspace }}:/ws:rw \
+            --platform linux/${{ matrix.arch == 'x86_64' && 'amd64' || 'arm64' }} \
+            -e CI_PACKAGE_VERSION=${{ env.CI_PACKAGE_VERSION }} \
+            -e CI_PACKAGE_NAME=${{ env.CI_PACKAGE_NAME }} \
+            -e CI_PACKAGE_ARCH=${{ matrix.arch }} \
+            ${{ steps.docker_image.outputs.IMAGE_NAME }} /bin/bash -c "
+              set -e
+              if [ \"${{ matrix.arch }}\" = \"x86_64\" ]; then
+                pacman-key --init && pacman-key --populate && pacman -Syu --noconfirm --needed base-devel cmake git qt6-base opencv ffmpeg
+              fi
+              cd /ws/QtProject_Linux
+              useradd builder -m && chown -R builder:builder /ws
+              sudo -u builder PKGEXT='.pkg.tar.zst' makepkg -sf --noconfirm
+              find . -maxdepth 1 -name \"*.pkg.tar.zst\" -exec mv {} /ws/packages/ \;
+            "
+      - name: Rename Arch Package
+        run: |
+          cd ${{ github.workspace }}/packages
+          mv *.pkg.tar.zst ${{ env.CI_PACKAGE_NAME }}-${{ env.CI_PACKAGE_VERSION }}-${{ matrix.arch }}-arch.pkg.tar.zst
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages-arch-${{ matrix.arch }}
+          path: ${{ github.workspace }}/packages
