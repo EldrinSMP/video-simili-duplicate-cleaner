@@ -6,7 +6,7 @@ on:
 
 # The single source of truth for version and name
 env:
-  CI_PACKAGE_VERSION: "1.13.0" # NOTE: Removed the "L-alpha" as it's non-standard. Add back if needed.
+  CI_PACKAGE_VERSION: "1.13.0"
   CI_PACKAGE_NAME: "video-simili-duplicate-cleaner"
 
 jobs:
